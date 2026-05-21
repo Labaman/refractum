@@ -31,7 +31,7 @@ def _log_writer(log_level, fields, n_fields, user_data):
 
 GLib.log_set_writer_func(_log_writer, None)
 
-from .config import load_reflector_config
+from .config import load_reflector_config, save_user_config
 from .country_detect import detect_country
 from .reflector import get_countries, ReflectorOptions
 from .mirrorlist import (
@@ -89,7 +89,21 @@ def _on_activate(app: Gtk.Application) -> None:
         defaults.countries = refl_cfg.countries
         defaults.protocols = refl_cfg.protocols or ["https"]
         defaults.sort      = refl_cfg.sort or "rate"
-        defaults.number    = int(refl_cfg.latest or refl_cfg.number or 10)
+        if refl_cfg.latest:
+            defaults.number     = int(refl_cfg.latest)
+            defaults.use_latest = True
+        else:
+            defaults.number     = int(refl_cfg.number or 10)
+        if refl_cfg.age:
+            defaults.age        = int(refl_cfg.age)
+        if refl_cfg.download_timeout:
+            defaults.download_timeout = int(refl_cfg.download_timeout)
+
+    # Bootstrap: write own settings file on first launch so subsequent
+    # launches never need to read third-party configs again.
+    from .config import USER_CONF
+    if not USER_CONF.exists():
+        save_user_config(defaults)
 
     # ------------------------------------------------------------------
     # Step 1: Main selection window

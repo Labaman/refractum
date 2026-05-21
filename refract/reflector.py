@@ -68,7 +68,7 @@ def get_countries() -> list[Country]:
     if not countries:
         raise RuntimeError("reflector returned an empty country list")
 
-    return [WORLDWIDE] + countries
+    return [WORLDWIDE] + sorted(countries, key=lambda c: c.name)
 
 
 def _parse_country_list(output: str) -> list[Country]:
@@ -119,7 +119,7 @@ class ReflectorOptions:
     protocols: list[str] = field(default_factory=list)    # ["https", "http"]
     sort: str = "rate"
     number: int = 10
-    use_latest: bool = True       # True = --latest N, False = --number N
+    use_latest: bool = False  # True = --latest N (N most recent), False = --age N (freshness window)
     age: int | None = None        # --age N (hours), None = omit
     download_timeout: int = 5
     extra_args: list[str] = field(default_factory=list)

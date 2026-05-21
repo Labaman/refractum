@@ -78,12 +78,23 @@ refract
 
 ## Configuration
 
-Refract reads reflector configuration on startup to pre-populate the Arch mirrors tab (countries, protocols, sort order, mirror count). It checks the following files in order, using the first one found:
+Refract stores personal settings in `~/.config/refract/settings.conf`, written
+automatically on every OK click and restored on the next launch.
 
-1. `/etc/xdg/reflector/reflector.conf` — reflector's own config
-2. `/etc/reflector-simple.conf` — reflector-simple config (if you use that tool alongside)
+The **Save as global default** button writes the current settings to
+`/etc/refract.conf` (requires root via pkexec). This lets an admin set
+system-wide defaults that new users inherit on their first launch.
 
-If neither file exists, built-in defaults are used.
+On first run, if no personal settings file exists yet, initial values are
+bootstrapped from the first available source (checked in order):
+
+1. `/etc/refract.conf` — refract's own system-wide config
+2. `/etc/reflector-simple.conf` — reflector-simple config
+3. `/etc/xdg/reflector/reflector.conf` — reflector's own config
+4. Built-in defaults
+
+The bootstrapped settings are saved immediately to `~/.config/refract/settings.conf`,
+so external config files are never read again after the first launch.
 
 ## Acknowledgements
 

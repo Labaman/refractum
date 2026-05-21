@@ -1,6 +1,7 @@
 # Maintainer: Mikhail <efklid@gmail.com>
+# shellcheck disable=SC2034,SC2154
 pkgname=refract
-pkgver=0.8.3
+pkgver=1.1.1
 pkgrel=1
 pkgdesc="GUI tool for ranking pacman mirrors on Arch Linux and Arch-based distributions"
 arch=('any')

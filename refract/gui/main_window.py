@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..reflector import Country, ReflectorOptions
+from ..config import save_user_config, save_global_config
 from ..distros import MirrorSet, ALL_MIRROR_SETS, installed_mirror_sets, detect_distro_id
 
 
@@ -62,6 +63,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
         self._country_checks: list[Gtk.CheckButton] = []
         self._distro_checks: dict[str, Gtk.CheckButton] = {}   # id → CheckButton
+        self._updating_countries = False
 
         self._build_ui()
 
@@ -132,6 +134,10 @@ class MainWindow(Gtk.ApplicationWindow):
             cb.set_active(country.code in pre_selected)
             self._country_checks.append(cb)
             grid.attach(cb, idx % self._columns, idx // self._columns, 1, 1)
+            if country.code == "WW":
+                cb.connect("toggled", self._on_worldwide_toggled)
+            else:
+                cb.connect("toggled", self._on_country_toggled)
 
         scroll.set_child(grid)
         return scroll
@@ -174,6 +180,31 @@ class MainWindow(Gtk.ApplicationWindow):
         current = self._defaults.sort or "rate"
         self._sort_combo.set_active(sort_opts.index(current) if current in sort_opts else 0)
         grid.attach(self._sort_combo, 1, row, 1, 1)
+        row += 1
+
+        # Sync recency — mutually exclusive: --age N  vs  --latest N
+        grid.attach(Gtk.Label(label="Sync recency:", xalign=0), 0, row, 1, 1)
+        freshness_box = Gtk.Box(spacing=12)
+
+        self._radio_age    = Gtk.CheckButton(label="Max age (h):")
+        self._radio_latest = Gtk.CheckButton(label="Latest synced")
+        self._radio_latest.set_group(self._radio_age)   # mutual exclusion
+
+        adj_age = Gtk.Adjustment(value=self._defaults.age or 24, lower=1, upper=8760, step_increment=1)
+        self._age_spin = Gtk.SpinButton(adjustment=adj_age, climb_rate=1, digits=0)
+        self._age_spin.set_width_chars(6)
+
+        use_latest = self._defaults.use_latest
+        self._radio_age.set_active(not use_latest)
+        self._radio_latest.set_active(use_latest)
+        self._age_spin.set_sensitive(not use_latest)
+
+        self._radio_age.connect("toggled", lambda btn: self._age_spin.set_sensitive(btn.get_active()))
+
+        freshness_box.append(self._radio_age)
+        freshness_box.append(self._age_spin)
+        freshness_box.append(self._radio_latest)
+        grid.attach(freshness_box, 1, row, 3, 1)
         row += 1
 
         # Number
@@ -320,8 +351,14 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _make_buttons(self) -> Gtk.Box:
         box = Gtk.Box(spacing=8)
-        box.set_halign(Gtk.Align.END)
         box.set_margin_top(8)
+
+        global_btn = Gtk.Button(label="Save as global default")
+        global_btn.set_tooltip_text("Write current settings to /etc/refract.conf (requires root)")
+        global_btn.connect("clicked", self._on_save_global)
+
+        spacer = Gtk.Box()
+        spacer.set_hexpand(True)
 
         cancel_btn = Gtk.Button(label="Cancel")
         cancel_btn.connect("clicked", self._on_cancel)
@@ -330,6 +367,8 @@ class MainWindow(Gtk.ApplicationWindow):
         ok_btn.add_css_class("suggested-action")
         ok_btn.connect("clicked", self._on_ok)
 
+        box.append(global_btn)
+        box.append(spacer)
         box.append(cancel_btn)
         box.append(ok_btn)
         return box
@@ -338,8 +377,7 @@ class MainWindow(Gtk.ApplicationWindow):
     # Signal handlers
     # ------------------------------------------------------------------
 
-    def _on_ok(self, _: Gtk.Button) -> None:
-        # Arch options
+    def _collect_options(self) -> ReflectorOptions:
         selected_codes = [
             c.code
             for c, cb in zip(self._countries, self._country_checks)
@@ -351,17 +389,24 @@ class MainWindow(Gtk.ApplicationWindow):
         if self._rsync_cb.get_active(): protocols.append("rsync")
 
         extra_raw = self._extra_entry.get_text().strip()
-        self._save_free_params(extra_raw)
-
-        opts = ReflectorOptions(
+        use_latest = self._radio_latest.get_active()
+        return ReflectorOptions(
             countries=selected_codes,
             protocols=protocols,
             sort=self._sort_combo.get_active_text() or "rate",
+            use_latest=use_latest,
+            age=None if use_latest else int(self._age_spin.get_value()),
             number=int(self._number_spin.get_value()),
-            use_latest=True,
             download_timeout=int(self._timeout_spin.get_value()),
             extra_args=extra_raw.split() if extra_raw else [],
         )
+
+    def _on_ok(self, _: Gtk.Button) -> None:
+        extra_raw = self._extra_entry.get_text().strip()
+        self._save_free_params(extra_raw)
+
+        opts = self._collect_options()
+        save_user_config(opts)
 
         # Distro sets: start with checked primaries, then append their derived sets.
         all_installed = installed_mirror_sets()
@@ -387,6 +432,16 @@ class MainWindow(Gtk.ApplicationWindow):
             self._on_result(result)
         self.close()
 
+    def _on_save_global(self, _: Gtk.Button) -> None:
+        opts = self._collect_options()
+        try:
+            save_global_config(opts)
+            self._show_toast("System defaults saved to /etc/refract.conf")
+        except PermissionError:
+            pass  # user cancelled pkexec — no error needed
+        except Exception as exc:
+            self._show_toast(f"Failed to save: {exc}")
+
     def _on_cancel(self, _: Gtk.Button) -> None:
         result = SelectionResult(options=self._defaults, cancelled=True)
         if self._on_result:
@@ -396,6 +451,30 @@ class MainWindow(Gtk.ApplicationWindow):
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    def _on_worldwide_toggled(self, cb: Gtk.CheckButton) -> None:
+        if self._updating_countries or not cb.get_active():
+            return
+        self._updating_countries = True
+        for check, country in zip(self._country_checks, self._countries):
+            if country.code != "WW":
+                check.set_active(False)
+        self._updating_countries = False
+
+    def _on_country_toggled(self, cb: Gtk.CheckButton) -> None:
+        if self._updating_countries or not cb.get_active():
+            return
+        self._updating_countries = True
+        for check, country in zip(self._country_checks, self._countries):
+            if country.code == "WW":
+                check.set_active(False)
+        self._updating_countries = False
+
+    def _show_toast(self, message: str) -> None:
+        dialog = Gtk.AlertDialog()
+        dialog.set_message(message)
+        dialog.set_buttons(["OK"])
+        dialog.show(self)
 
     def _load_free_params(self) -> str:
         if self.FREE_PARAMS_FILE.exists():
