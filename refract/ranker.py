@@ -1,0 +1,219 @@
+"""
+Speed-based mirror ranker.
+
+Downloads a small portion of a test file from each mirror and measures
+throughput in bytes/second. Uses a thread pool so all mirrors are tested
+concurrently — the total time is roughly equal to the slowest mirror's
+test time rather than the sum of all times.
+
+This is the approach used by rate-mirrors and eos-rankmirrors.
+"""
+
+from __future__ import annotations
+
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
+from typing import Callable
+
+import requests
+
+from .distros import MirrorSet, fetch_mirrorlist, generate_mirrorlist
+
+
+# ---------------------------------------------------------------------------
+# Speed test for a single URL
+# ---------------------------------------------------------------------------
+
+# How many bytes to download per test. 200 KB is enough to get a reliable
+# bandwidth measurement without wasting too much time on slow mirrors.
+_TEST_BYTES = 200_000
+
+# Mimic pacman so mirrors that filter by User-Agent respond correctly.
+_HEADERS = {"User-Agent": "pacman/6.1.0 libalpm/14.0.0"}
+
+# Alternative database filenames to try when the primary test file returns 404.
+# Pacman repos always ship at least one of these.
+_FALLBACK_DB_NAMES = ("extra.db", "core.db", "community.db")
+
+
+def test_mirror_speed(
+    url: str,
+    timeout: float = 8.0,
+    max_bytes: int = _TEST_BYTES,
+) -> float | None:
+    """
+    Download up to `max_bytes` from `url` and return bytes/second.
+
+    Returns None only when the mirror is genuinely unreachable or times out.
+    Returns 0.0 when the mirror is up but the specific test file is missing
+    (server responded 404 for primary file, but repo directory is reachable) —
+    the mirror is still usable and sorts at the bottom of reachable results.
+
+    Test strategy:
+      1. GET primary URL (e.g. cachyos.db)  — measures real bandwidth
+      2. If 404: try fallback .db names in the same directory
+      3. If still 404: HEAD the repo directory — confirms server is up
+    """
+    try:
+        start = time.monotonic()
+        downloaded = 0
+
+        with requests.get(url, timeout=timeout, stream=True,
+                          headers=_HEADERS) as resp:
+            if resp.status_code == 404:
+                return _check_fallback(url, timeout)
+            resp.raise_for_status()
+            for chunk in resp.iter_content(chunk_size=8192):
+                downloaded += len(chunk)
+                if downloaded >= max_bytes:
+                    break
+
+        elapsed = time.monotonic() - start
+        if elapsed > 0 and downloaded > 1024:
+            return downloaded / elapsed
+
+    except (requests.RequestException, OSError):
+        pass
+
+    return None
+
+
+def _check_fallback(primary_url: str, timeout: float) -> float | None:
+    """
+    Called when the primary test file returned 404.
+    Try alternative filenames, then fall back to a HEAD on the repo directory.
+    Returns 0.0 if the mirror is alive (speed unknown), None if unreachable.
+    """
+    base_dir = primary_url.rsplit("/", 1)[0]  # strip filename
+
+    # Try alternative database names in the same repo directory
+    for name in _FALLBACK_DB_NAMES:
+        alt_url = f"{base_dir}/{name}"
+        if alt_url == primary_url:
+            continue
+        try:
+            start = time.monotonic()
+            downloaded = 0
+            with requests.get(alt_url, timeout=timeout, stream=True,
+                              headers=_HEADERS) as r:
+                if r.status_code == 404:
+                    continue
+                r.raise_for_status()
+                for chunk in r.iter_content(chunk_size=8192):
+                    downloaded += len(chunk)
+                    if downloaded >= _TEST_BYTES:
+                        break
+            elapsed = time.monotonic() - start
+            if elapsed > 0 and downloaded > 1024:
+                return downloaded / elapsed
+        except (requests.RequestException, OSError):
+            pass
+
+    # Last resort: HEAD the repo directory itself
+    try:
+        r = requests.head(base_dir + "/", timeout=min(3.0, timeout / 2),
+                          headers=_HEADERS, allow_redirects=True)
+        if r.status_code < 500:
+            return 0.0   # server is up, speed unknown
+    except (requests.RequestException, OSError):
+        pass
+
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Concurrent ranking of a full MirrorSet
+# ---------------------------------------------------------------------------
+
+@dataclass
+class RankResult:
+    """Result for one mirror."""
+    template: str        # the Server = … URL template
+    test_url: str        # the actual URL that was fetched
+    speed: float         # bytes/second, 0.0 if unreachable
+    reachable: bool
+
+
+def rank_mirror_set(
+    ms: MirrorSet,
+    templates: list[str] | None = None,
+    max_workers: int = 10,
+    timeout: float = 8.0,
+    protocols: list[str] | None = None,
+    max_results: int | None = None,
+    on_progress: Callable[[RankResult], None] | None = None,
+) -> list[RankResult]:
+    """
+    Test every mirror in `templates` concurrently and return results sorted
+    fastest first.
+
+    Args:
+        ms:           The MirrorSet (used for make_test_url).
+        templates:    Pre-fetched list of Server templates. If None, fetched
+                      internally (no country filter — pass a pre-filtered list
+                      from the caller when country filtering is needed).
+        max_workers:  Number of concurrent download threads.
+        timeout:      Per-mirror download timeout in seconds.
+        protocols:    If given, only test mirrors matching these protocols.
+        max_results:  If given, return only the top N reachable mirrors.
+        on_progress:  Callback called after each mirror finishes.
+    """
+    if templates is None:
+        templates = fetch_mirrorlist(ms)
+    if not templates:
+        return []
+
+    # Filter by protocol before testing — no point benchmarking unwanted protocols
+    if protocols:
+        templates = [t for t in templates if any(t.startswith(p + "://") for p in protocols)]
+    if not templates:
+        return []
+
+    # Build (template → test_url) mapping, deduplicated
+    seen: set[str] = set()
+    jobs: list[tuple[str, str]] = []
+    for tmpl in templates:
+        if tmpl not in seen:
+            seen.add(tmpl)
+            jobs.append((tmpl, ms.make_test_url(tmpl)))
+
+    results: list[RankResult] = []
+
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        # Dict maps Future → template so we can look it up when the future completes
+        future_to_job = {
+            pool.submit(test_mirror_speed, test_url, timeout): (tmpl, test_url)
+            for tmpl, test_url in jobs
+        }
+
+        for future in as_completed(future_to_job):
+            tmpl, test_url = future_to_job[future]
+            speed = future.result()   # None if the mirror failed
+
+            r = RankResult(
+                template=tmpl,
+                test_url=test_url,
+                speed=speed or 0.0,
+                reachable=speed is not None,
+            )
+            results.append(r)
+
+            if on_progress:
+                on_progress(r)
+
+    # Sort: reachable first, then by speed descending
+    results.sort(key=lambda r: (not r.reachable, -r.speed))
+
+    if max_results is not None and max_results > 0:
+        reachable = [r for r in results if r.reachable]
+        unreachable = [r for r in results if not r.reachable]
+        results = reachable[:max_results] + unreachable
+
+    return results
+
+
+def ranked_to_mirrorlist(ms: MirrorSet, results: list[RankResult]) -> str:
+    """Convert RankResult list to a pacman mirrorlist string."""
+    reachable = [(r.template, r.speed) for r in results if r.reachable]
+    return generate_mirrorlist(ms, reachable)

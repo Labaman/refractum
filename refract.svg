@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a8d8f0" stop-opacity=".28"/>
+      <stop offset="1" stop-color="#4888bb" stop-opacity=".08"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="128" height="128" rx="18" fill="#0d1117"/>
+
+  <!-- Incoming white beam -->
+  <line x1="2" y1="44" x2="42" y2="53" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Prism body -->
+  <polygon points="64,11 11,111 117,111"
+           fill="url(#glass)"
+           stroke="#7ab8de" stroke-width="2.2" stroke-linejoin="round"/>
+
+  <!-- Spectrum rays (red bends least, violet most) -->
+  <line x1="88" y1="55" x2="126" y2="30" stroke="#ff3333" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="89" y1="59" x2="126" y2="47" stroke="#ff8800" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="90" y1="63" x2="126" y2="64" stroke="#ffdd00" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="90" y1="68" x2="125" y2="81" stroke="#33cc44" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="89" y1="72" x2="121" y2="96" stroke="#3366ff" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="87" y1="76" x2="112" y2="110" stroke="#9933ee" stroke-width="2.8" stroke-linecap="round"/>
+</svg>

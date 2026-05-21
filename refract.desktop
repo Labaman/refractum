@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Refract
+Comment=Rank Arch Linux and distro-specific pacman mirrors
+Exec=refract
+Icon=refract
+Terminal=false
+Type=Application
+Categories=System;Settings;
+Keywords=mirror;pacman;arch;reflector;mirrors;

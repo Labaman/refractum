@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "refract"
+version = "0.8.3"
+description = "Simple GUI for ranking Arch Linux and distro-specific pacman mirrors"
+requires-python = ">=3.11"
+dependencies = [
+    "requests",
+]
+
+[project.scripts]
+refract = "refract.__main__:main"
+refract-rank = "refract.rank_info:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["refract"]
