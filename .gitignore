@@ -7,3 +7,5 @@ build/
 *.whl
 pkg/
 src/
+*.tar.gz
+.SRCINFO
