@@ -7,12 +7,11 @@ GUI tool for ranking pacman mirrors on Arch Linux and Arch-based distributions.
 ## Features
 
 - **Arch mirrors** — ranks mirrors via [reflector](https://wiki.archlinux.org/title/Reflector) with a graphical country selector and full option control
-- **Distro mirrors** — speed-tests mirrors for CachyOS, EndeavourOS, Artix, BlackArch, Chaotic-AUR, Arch Linux CN, Arch4edu, RebornOS, ArcoLinux
+- **Distro mirrors** — ranks distro-specific and third-party repo mirrors by download speed
 - **Live progress** — results appear in real time as each mirror is tested
 - **Country filter** — applies to both Arch and distro mirrors
 - **Auto-detection** — pre-selects the current distro's mirror set automatically
 - **Preview + diff** — shows the new mirrorlist with syntax highlighting and a diff against the current file before saving
-- **Single sudo prompt** — all mirrorlist files are saved in one `pkexec` call, no matter how many
 
 ## Supported mirrors
 
@@ -49,14 +48,22 @@ Only mirrorlist files present on the system are active; the rest are shown greye
 
 ## Installation
 
-### Via pacman (recommended)
+### From source
+
+Make sure `base-devel` and `git` are installed:
 
 ```bash
-cd /path/to/refract
+sudo pacman -S --needed git base-devel
+git clone https://github.com/Labaman/refract.git
+cd refract
 makepkg -si
 ```
 
-This builds and installs the package, adds `refract` to `/usr/bin`, and registers the application in the system menu.
+Or as a single command:
+
+```bash
+sudo pacman -S --needed git base-devel && git clone https://github.com/Labaman/refract.git && cd refract && makepkg -si
+```
 
 ### Development install
 
