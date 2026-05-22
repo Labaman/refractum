@@ -9,3 +9,4 @@ pkg/
 src/
 *.tar.gz
 .SRCINFO
+.vscode/
