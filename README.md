@@ -10,6 +10,7 @@ GUI tool for ranking pacman mirrors on Arch Linux and Arch-based distributions.
 - **Distro mirrors** — ranks distro-specific and third-party repo mirrors by download speed
 - **Live progress** — results appear in real time as each mirror is tested
 - **Country filter** — applies to both Arch and distro mirrors
+- **Parallel testing** — configurable thread count for faster ranking
 - **Auto-detection** — pre-selects the current distro's mirror set automatically
 - **Preview + diff** — shows the new mirrorlist with syntax highlighting and a diff against the current file before saving
 
@@ -48,6 +49,22 @@ Only mirrorlist files present on the system are active; the rest are shown greye
 
 ## Installation
 
+### AUR (recommended)
+
+```bash
+yay -S refract
+```
+
+Or with any other AUR helper (`paru`, `trizen`, etc.).
+
+### Pre-built package
+
+Download the `.pkg.tar.zst` from the [latest release](https://github.com/Labaman/refract/releases/latest) and install it:
+
+```bash
+sudo pacman -U refract-*.pkg.tar.zst
+```
+
 ### From source
 
 Make sure `base-devel` and `git` are installed:
@@ -57,12 +74,6 @@ sudo pacman -S --needed git base-devel
 git clone https://github.com/Labaman/refract.git
 cd refract
 makepkg -si
-```
-
-Or as a single command:
-
-```bash
-sudo pacman -S --needed git base-devel && git clone https://github.com/Labaman/refract.git && cd refract && makepkg -si
 ```
 
 ### Development install
