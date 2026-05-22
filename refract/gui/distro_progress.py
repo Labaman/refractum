@@ -296,7 +296,7 @@ class DistroProgressWindow(Gtk.Window):
         return False
 
     def _on_mirror_result(self, set_id: str, result: RankResult) -> bool:
-        """Update progress bar as each mirror finishes. Rows are added in bulk in _on_set_done."""
+        """Update progress bar and add a live result row as each mirror finishes."""
         self._results[set_id].append(result)
 
         pb    = self._progress_bars[set_id]
@@ -304,6 +304,11 @@ class DistroProgressWindow(Gtk.Window):
         total = self._total_mirrors.get(set_id, 1)
         pb.set_fraction(min(1.0, done / total))
         self._pb_labels[set_id].set_text(f"{done}/{total}")
+
+        lb = self._list_boxes.get(set_id)
+        if lb:
+            self._append_result_row(lb, result)
+
         return False
 
     def _append_result_row(self, lb: Gtk.ListBox, result: RankResult) -> None:
@@ -360,6 +365,11 @@ class DistroProgressWindow(Gtk.Window):
 
         lb = self._list_boxes.get(set_id)
         if lb:
+            # Re-populate in sorted order (live rows arrived in completion order)
+            row = lb.get_row_at_index(0)
+            while row is not None:
+                lb.remove(row)
+                row = lb.get_row_at_index(0)
             for r in results:
                 self._append_result_row(lb, r)
 
