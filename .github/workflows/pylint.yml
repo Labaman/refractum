@@ -16,5 +16,8 @@ jobs:
     - name: Install ruff
       run: pip install ruff
 
-    - name: Run ruff
+    - name: Run ruff check
       run: ruff check refract/
+
+    - name: Run ruff format
+      run: ruff format --check refract/
