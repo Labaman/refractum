@@ -232,6 +232,14 @@ class MainWindow(Gtk.ApplicationWindow):
         grid.attach(self._timeout_spin, 1, row, 1, 1)
         row += 1
 
+        # Threads
+        grid.attach(Gtk.Label(label="Threads:", xalign=0), 0, row, 1, 1)
+        adj3 = Gtk.Adjustment(value=self._defaults.threads or 5, lower=1, upper=32, step_increment=1)
+        self._threads_spin = Gtk.SpinButton(adjustment=adj3, climb_rate=1, digits=0)
+        self._threads_spin.set_width_chars(6)
+        grid.attach(self._threads_spin, 1, row, 1, 1)
+        row += 1
+
         # Extra args
         grid.attach(Gtk.Label(label="Extra reflector args:", xalign=0), 0, row, 1, 1)
         self._extra_entry = Gtk.Entry()
@@ -283,48 +291,60 @@ class MainWindow(Gtk.ApplicationWindow):
         }
         auto_id = _distro_to_set_id.get(detect_distro_id(), "")
 
-        list_box = Gtk.ListBox()
-        list_box.set_selection_mode(Gtk.SelectionMode.NONE)
-        list_box.add_css_class("boxed-list")
-
         hint_label = Gtk.Label(label="", xalign=0, css_classes=["dim-label"])
         hint_label.set_margin_top(2)
         hint_label.set_margin_start(4)
 
-        for ms in all_primaries:
-            is_installed = ms.id in installed_ids
-            paths = [ms.mirrorlist_path] + [d.mirrorlist_path for d in derived_by_primary.get(ms.id, [])]
-            suffix = "" if is_installed else "  (not installed)"
-            hint_text = "  |  ".join(str(p) for p in paths) + suffix
+        groups = [
+            ("Distributions",          [ms for ms in all_primaries if not ms.is_repo]),
+            ("Third-party repositories", [ms for ms in all_primaries if ms.is_repo]),
+        ]
 
-            row = Gtk.ListBoxRow()
-            row_box = Gtk.Box(spacing=12)
-            row_box.set_margin_start(8)
-            row_box.set_margin_end(8)
-            row_box.set_margin_top(6)
-            row_box.set_margin_bottom(6)
+        for group_label, members in groups:
+            header = Gtk.Label(label=group_label, xalign=0)
+            header.set_margin_top(8)
+            header.set_margin_bottom(2)
+            box.append(header)
 
-            cb = Gtk.CheckButton()
-            cb.set_active(is_installed and ms.id == auto_id)
-            cb.set_sensitive(is_installed)
-            self._distro_checks[ms.id] = cb
+            list_box = Gtk.ListBox()
+            list_box.set_selection_mode(Gtk.SelectionMode.NONE)
+            list_box.add_css_class("boxed-list")
 
-            name_label = Gtk.Label(label=ms.display_name, xalign=0, hexpand=True)
-            if not is_installed:
-                name_label.add_css_class("dim-label")
+            for ms in members:
+                is_installed = ms.id in installed_ids
+                paths = [ms.mirrorlist_path] + [d.mirrorlist_path for d in derived_by_primary.get(ms.id, [])]
+                suffix = "" if is_installed else "  (not installed)"
+                hint_text = "  |  ".join(str(p) for p in paths) + suffix
 
-            row_box.append(cb)
-            row_box.append(name_label)
-            row.set_child(row_box)
+                row = Gtk.ListBoxRow()
+                row_box = Gtk.Box(spacing=12)
+                row_box.set_margin_start(8)
+                row_box.set_margin_end(8)
+                row_box.set_margin_top(6)
+                row_box.set_margin_bottom(6)
 
-            motion = Gtk.EventControllerMotion()
-            motion.connect("enter", lambda _c, _x, _y, t=hint_text: hint_label.set_text(t))
-            motion.connect("leave", lambda _c: hint_label.set_text(""))
-            row.add_controller(motion)
+                cb = Gtk.CheckButton()
+                cb.set_active(is_installed and ms.id == auto_id)
+                cb.set_sensitive(is_installed)
+                self._distro_checks[ms.id] = cb
 
-            list_box.append(row)
+                name_label = Gtk.Label(label=ms.display_name, xalign=0, hexpand=True)
+                if not is_installed:
+                    name_label.add_css_class("dim-label")
 
-        box.append(list_box)
+                row_box.append(cb)
+                row_box.append(name_label)
+                row.set_child(row_box)
+
+                motion = Gtk.EventControllerMotion()
+                motion.connect("enter", lambda _c, _x, _y, t=hint_text: hint_label.set_text(t))
+                motion.connect("leave", lambda _c: hint_label.set_text(""))
+                row.add_controller(motion)
+
+                list_box.append(row)
+
+            box.append(list_box)
+
         box.append(hint_label)
 
         # Speed test settings (timeout and max mirrors come from Arch mirrors tab)
@@ -409,6 +429,7 @@ class MainWindow(Gtk.ApplicationWindow):
             age=None if use_latest else int(self._age_spin.get_value()),
             number=int(self._number_spin.get_value()),
             download_timeout=int(self._timeout_spin.get_value()),
+            threads=int(self._threads_spin.get_value()),
             extra_args=extra_raw.split() if extra_raw else [],
         )
 

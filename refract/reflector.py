@@ -133,6 +133,7 @@ class ReflectorOptions:
     use_latest: bool = False  # True = --latest N (N most recent), False = --age N (freshness window)
     age: int | None = None        # --age N (hours), None = omit
     download_timeout: int = 5
+    threads: int | None = None
     extra_args: list[str] = field(default_factory=list)
 
 
@@ -166,6 +167,10 @@ def build_command(opts: ReflectorOptions) -> list[str]:
         cmd += ["--number", str(max(1, opts.number))]
 
     cmd += ["--download-timeout", str(opts.download_timeout)]
+
+    if opts.threads is not None and opts.threads > 1:
+        cmd += ["--threads", str(opts.threads)]
+
     cmd += opts.extra_args
 
     return cmd

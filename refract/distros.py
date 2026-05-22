@@ -47,8 +47,9 @@ class MirrorSet:
     test_repo:        str
     test_arch:        str
     test_db:          str
-    arch_var:         str = "$arch"
-    primary_id:       str = ""
+    arch_var:         str  = "$arch"
+    primary_id:       str  = ""
+    is_repo:          bool = False
 
     def make_test_url(self, server_template: str) -> str:
         """
@@ -303,6 +304,7 @@ ALL_MIRROR_SETS: list[MirrorSet] = [
         test_repo="chaotic-aur",
         test_arch="x86_64",
         test_db="chaotic-aur.db",
+        is_repo=True,
     ),
     MirrorSet(
         id="archlinuxcn",
@@ -312,6 +314,7 @@ ALL_MIRROR_SETS: list[MirrorSet] = [
         test_repo="archlinuxcn",
         test_arch="x86_64",
         test_db="archlinuxcn.db",
+        is_repo=True,
     ),
     MirrorSet(
         id="rebornos",
@@ -339,6 +342,7 @@ ALL_MIRROR_SETS: list[MirrorSet] = [
         test_repo="",
         test_arch="x86_64",
         test_db="arch4edu.db",
+        is_repo=True,
     ),
 ]
 

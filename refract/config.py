@@ -48,6 +48,7 @@ class ReflectorConfig:
     number: str = ""
     latest: str = ""
     download_timeout: str = ""
+    threads: str = ""
 
 
 def load_reflector_config(path: Path | None = None) -> ReflectorConfig | None:
@@ -102,6 +103,8 @@ def load_reflector_config(path: Path | None = None) -> ReflectorConfig | None:
                 cfg.countries.extend(v.strip() for v in val.split(","))
             case "--download-timeout":
                 cfg.download_timeout = val
+            case "--threads":
+                cfg.threads = val
 
     return cfg
 
@@ -157,6 +160,8 @@ def _build_config_lines(opts: ReflectorOptions) -> list[str]:
             lines.append(f"--age {opts.age}")
         lines.append(f"--number {opts.number}")
     lines.append(f"--download-timeout {opts.download_timeout}")
+    if opts.threads is not None and opts.threads > 1:
+        lines.append(f"--threads {opts.threads}")
     return lines
 
 

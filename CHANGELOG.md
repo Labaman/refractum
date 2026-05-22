@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.0] — 2026-05-22
+
+### Added
+- **Threads** control in Arch mirrors options: `--threads N` for parallel mirror
+  ranking (reflector 2023+); persisted in `settings.conf`
+- **Distro mirrors tab** now groups entries into **Distributions** and
+  **Third-party repositories** sections
+
 ## [1.3.0] — 2026-05-22
 
 ### Fixed

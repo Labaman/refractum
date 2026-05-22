@@ -98,6 +98,8 @@ def _on_activate(app: Gtk.Application) -> None:
             defaults.age        = int(refl_cfg.age)
         if refl_cfg.download_timeout:
             defaults.download_timeout = int(refl_cfg.download_timeout)
+        if refl_cfg.threads:
+            defaults.threads = int(refl_cfg.threads)
 
     # Bootstrap: write own settings file on first launch so subsequent
     # launches never need to read third-party configs again.
