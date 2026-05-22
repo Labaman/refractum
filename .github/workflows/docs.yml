@@ -15,9 +15,11 @@ jobs:
 
       - name: Markdown lint
         uses: DavidAnson/markdownlint-cli2-action@v19
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         with:
           globs: '**.md'
-          config: .github/markdownlint.yaml
+          config: .github/lint.markdownlint-cli2.yaml
 
       - name: Spell check
         run: |
