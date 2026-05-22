@@ -22,5 +22,5 @@ packages = ["refract"]
 line-length = 120
 
 [tool.ruff.lint]
-select = ["E", "W", "F"]
-ignore = ["E203", "E402", "E221", "E701"]
+select = ["E", "W", "F", "UP", "B"]
+ignore = ["E203", "E402", "E221", "E701", "B905"]
