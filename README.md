@@ -19,7 +19,7 @@ GUI tool for ranking pacman mirrors on Arch Linux and Arch-based distributions.
 ### Distributions
 
 | Distro | Mirrorlist file |
-|---|---|
+| --- | --- |
 | Arch Linux | `/etc/pacman.d/mirrorlist` (via reflector) |
 | CachyOS (x86\_64 / v3 / v4) | `/etc/pacman.d/cachyos-mirrorlist` + derived |
 | EndeavourOS | `/etc/pacman.d/endeavouros-mirrorlist` |
@@ -31,7 +31,7 @@ GUI tool for ranking pacman mirrors on Arch Linux and Arch-based distributions.
 ### Third-party repositories
 
 | Repository | Mirrorlist file |
-|---|---|
+| --- | --- |
 | Chaotic-AUR | `/etc/pacman.d/chaotic-mirrorlist` |
 | Arch Linux CN | `/etc/pacman.d/archlinuxcn-mirrorlist` |
 | Arch4edu | `/etc/pacman.d/arch4edu-mirrorlist` |
