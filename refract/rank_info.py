@@ -22,16 +22,18 @@ LASTUPDATE_FILE = "lastupdate"
 # Data
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class MirrorInfo:
     url: str
     age_seconds: int
-    fetch_time: float   # seconds
+    fetch_time: float  # seconds
 
 
 # ---------------------------------------------------------------------------
 # Core logic
 # ---------------------------------------------------------------------------
+
 
 def read_mirrors(path: Path = MIRRORLIST_PATH) -> list[str]:
     """
@@ -43,7 +45,7 @@ def read_mirrors(path: Path = MIRRORLIST_PATH) -> list[str]:
     servers = []
     for line in path.read_text(encoding="utf-8").splitlines():
         if line.startswith("Server = "):
-            url = line[len("Server = "):].strip()
+            url = line[len("Server = ") :].strip()
             base = url.replace("/$repo/os/$arch", "").rstrip("/")
             servers.append(base)
     return servers
@@ -90,9 +92,9 @@ def rank_mirrors(
     """
     now = time.time()
     results: list[MirrorInfo] = []
-    failed:  list[str]        = []
+    failed: list[str] = []
     total = len(mirrors)
-    done  = 0
+    done = 0
 
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         future_to_url = {pool.submit(check_mirror, url, now): url for url in mirrors}
@@ -121,6 +123,7 @@ def rank_mirrors(
 # ---------------------------------------------------------------------------
 # Output formatting
 # ---------------------------------------------------------------------------
+
 
 def format_age(seconds: int) -> str:
     """Convert age in seconds to a human-readable string."""
@@ -154,6 +157,7 @@ def print_table(results: list[MirrorInfo]) -> None:
 # ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
+
 
 def main(argv: list[str] | None = None) -> None:
     """

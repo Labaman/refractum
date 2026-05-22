@@ -62,8 +62,7 @@ def test_mirror_speed(
       3. If still 404: HEAD the repo directory — confirms server is up
     """
     try:
-        with requests.get(url, timeout=timeout, stream=True,
-                          headers=_HEADERS) as resp:
+        with requests.get(url, timeout=timeout, stream=True, headers=_HEADERS) as resp:
             if resp.status_code == 404:
                 return _check_fallback(url, timeout)
             resp.raise_for_status()
@@ -104,8 +103,7 @@ def _check_fallback(primary_url: str, timeout: float) -> float | None:
         if alt_url == primary_url:
             continue
         try:
-            with requests.get(alt_url, timeout=timeout, stream=True,
-                              headers=_HEADERS) as r:
+            with requests.get(alt_url, timeout=timeout, stream=True, headers=_HEADERS) as r:
                 if r.status_code == 404:
                     continue
                 r.raise_for_status()
@@ -126,10 +124,9 @@ def _check_fallback(primary_url: str, timeout: float) -> float | None:
 
     # Last resort: HEAD the repo directory itself
     try:
-        r = requests.head(base_dir + "/", timeout=min(3.0, timeout / 2),
-                          headers=_HEADERS, allow_redirects=True)
+        r = requests.head(base_dir + "/", timeout=min(3.0, timeout / 2), headers=_HEADERS, allow_redirects=True)
         if r.status_code < 500:
-            return 0.0   # server is up, speed unknown
+            return 0.0  # server is up, speed unknown
     except (requests.RequestException, OSError):
         pass
 
@@ -140,12 +137,14 @@ def _check_fallback(primary_url: str, timeout: float) -> float | None:
 # Concurrent ranking of a full MirrorSet
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class RankResult:
     """Result for one mirror."""
-    template: str        # the Server = … URL template
-    test_url: str        # the actual URL that was fetched
-    speed: float         # bytes/second, 0.0 if unreachable
+
+    template: str  # the Server = … URL template
+    test_url: str  # the actual URL that was fetched
+    speed: float  # bytes/second, 0.0 if unreachable
     reachable: bool
 
 
@@ -196,10 +195,7 @@ def rank_mirror_set(
 
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         # Dict maps Future → template so we can look it up when the future completes
-        future_to_job = {
-            pool.submit(test_mirror_speed, test_url, timeout): (tmpl, test_url)
-            for tmpl, test_url in jobs
-        }
+        future_to_job = {pool.submit(test_mirror_speed, test_url, timeout): (tmpl, test_url) for tmpl, test_url in jobs}
 
         for future in as_completed(future_to_job):
             tmpl, test_url = future_to_job[future]

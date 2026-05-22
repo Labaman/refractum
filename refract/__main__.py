@@ -8,6 +8,7 @@ import traceback
 from pathlib import Path
 
 import gi
+
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, GLib  # noqa: E402
 
@@ -89,14 +90,14 @@ def _on_activate(app: Gtk.Application) -> None:
     if refl_cfg:
         defaults.countries = refl_cfg.countries
         defaults.protocols = refl_cfg.protocols or ["https"]
-        defaults.sort      = refl_cfg.sort or "rate"
+        defaults.sort = refl_cfg.sort or "rate"
         if refl_cfg.latest:
-            defaults.number     = int(refl_cfg.latest)
+            defaults.number = int(refl_cfg.latest)
             defaults.use_latest = True
         else:
-            defaults.number     = int(refl_cfg.number or 10)
+            defaults.number = int(refl_cfg.number or 10)
         if refl_cfg.age:
-            defaults.age        = int(refl_cfg.age)
+            defaults.age = int(refl_cfg.age)
         if refl_cfg.download_timeout:
             defaults.download_timeout = int(refl_cfg.download_timeout)
         if refl_cfg.threads:

@@ -23,6 +23,7 @@ import requests
 # MirrorSet — one mirrorlist file
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class MirrorSet:
     """
@@ -40,16 +41,17 @@ class MirrorSet:
                       Default "$arch"; CachyOS-v3 uses "$arch_v3", v4 uses "$arch_v4"
         primary_id    If set, this set is derived from the named primary (no direct test)
     """
-    id:               str
-    display_name:     str
-    mirrorlist_path:  Path
-    source_url:       str
-    test_repo:        str
-    test_arch:        str
-    test_db:          str
-    arch_var:         str  = "$arch"
-    primary_id:       str  = ""
-    is_repo:          bool = False
+
+    id: str
+    display_name: str
+    mirrorlist_path: Path
+    source_url: str
+    test_repo: str
+    test_arch: str
+    test_db: str
+    arch_var: str = "$arch"
+    primary_id: str = ""
+    is_repo: bool = False
 
     def make_test_url(self, server_template: str) -> str:
         """
@@ -59,12 +61,8 @@ class MirrorSet:
             template = "https://cdn77.cachyos.org/repo/$arch/$repo"
             → "https://cdn77.cachyos.org/repo/x86_64/cachyos/cachyos.db"
         """
-        url = (
-            server_template
-            .replace(self.arch_var, self.test_arch)
-            .replace("$repo", self.test_repo)
-        )
-        url = re.sub(r'(?<!:)//+', '/', url)  # collapse // left by empty test_repo
+        url = server_template.replace(self.arch_var, self.test_arch).replace("$repo", self.test_repo)
+        url = re.sub(r"(?<!:)//+", "/", url)  # collapse // left by empty test_repo
         return url.rstrip("/") + f"/{self.test_db}"
 
     @property
@@ -77,9 +75,9 @@ class MirrorSet:
 # Parse a mirrorlist file
 # ---------------------------------------------------------------------------
 
-_COMMENTED_SERVER_RE = re.compile(r'^#\s*Server\s*=\s*(.+)$')
+_COMMENTED_SERVER_RE = re.compile(r"^#\s*Server\s*=\s*(.+)$")
 # Matches section headers: "## Germany" or "## USA Mirror much thanks to…" etc.
-_SECTION_HEADER_RE  = re.compile(r'^#{1,2}\s+(.{2,60})$')
+_SECTION_HEADER_RE = re.compile(r"^#{1,2}\s+(.{2,60})$")
 
 
 def parse_mirrorlist(text: str, include_commented: bool = True) -> list[str]:
@@ -107,8 +105,9 @@ def parse_mirrorlist(text: str, include_commented: bool = True) -> list[str]:
 
 
 # Words in headers that are never country names
-_SKIP_WORDS = frozenset(("server", "generated", "mirrorlist", "disabled", "enabled",
-                         "rerouted", "deprecated", "note", "todo", "cachyos"))
+_SKIP_WORDS = frozenset(
+    ("server", "generated", "mirrorlist", "disabled", "enabled", "rerouted", "deprecated", "note", "todo", "cachyos")
+)
 
 
 def _filter_servers_by_countries(
@@ -208,6 +207,7 @@ def fetch_mirrorlist(
 # ---------------------------------------------------------------------------
 # Generate mirrorlist text from ranked results
 # ---------------------------------------------------------------------------
+
 
 def generate_mirrorlist(
     ms: MirrorSet,

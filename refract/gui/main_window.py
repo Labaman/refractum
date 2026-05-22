@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import gi
 import math
+
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk  # noqa: E402
 
@@ -25,9 +26,11 @@ from ..distros import MirrorSet, ALL_MIRROR_SETS, installed_mirror_sets, detect_
 # Result types
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class SelectionResult:
     """Everything the user chose in the main window."""
+
     options: ReflectorOptions
     distro_sets: list[MirrorSet] = field(default_factory=list)
     distro_workers: int = 10
@@ -38,8 +41,8 @@ class SelectionResult:
 # Main window
 # ---------------------------------------------------------------------------
 
-class MainWindow(Gtk.ApplicationWindow):
 
+class MainWindow(Gtk.ApplicationWindow):
     FREE_PARAMS_FILE = Path.home() / ".config" / "refract-free-params.txt"
 
     def __init__(
@@ -63,7 +66,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self._on_result = on_result
 
         self._country_checks: list[Gtk.CheckButton] = []
-        self._distro_checks: dict[str, Gtk.CheckButton] = {}   # id → CheckButton
+        self._distro_checks: dict[str, Gtk.CheckButton] = {}  # id → CheckButton
         self._updating_countries = False
 
         self._build_ui()
@@ -105,11 +108,13 @@ class MainWindow(Gtk.ApplicationWindow):
         box.set_margin_end(4)
         box.set_margin_top(8)
 
-        box.append(Gtk.Label(
-            label="Select countries to include in mirror ranking.\n"
-                  "Closest locations are usually the fastest. HTTPS is preferred.",
-            xalign=0,
-        ))
+        box.append(
+            Gtk.Label(
+                label="Select countries to include in mirror ranking.\n"
+                "Closest locations are usually the fastest. HTTPS is preferred.",
+                xalign=0,
+            )
+        )
 
         scroll = self._make_country_scroll()
         scroll.set_vexpand(True)
@@ -171,7 +176,7 @@ class MainWindow(Gtk.ApplicationWindow):
         proto_box = Gtk.Box(spacing=8)
         self._https_cb = Gtk.CheckButton(label="https")
         self._https_cb.set_active(True)
-        self._http_cb  = Gtk.CheckButton(label="http")
+        self._http_cb = Gtk.CheckButton(label="http")
         self._http_cb.set_active("http" in self._defaults.protocols)
         self._rsync_cb = Gtk.CheckButton(label="rsync")
         self._rsync_cb.set_active("rsync" in self._defaults.protocols)
@@ -195,9 +200,9 @@ class MainWindow(Gtk.ApplicationWindow):
         grid.attach(Gtk.Label(label="Sync recency:", xalign=0), 0, row, 1, 1)
         freshness_box = Gtk.Box(spacing=12)
 
-        self._radio_age    = Gtk.CheckButton(label="Max age (h):")
+        self._radio_age = Gtk.CheckButton(label="Max age (h):")
         self._radio_latest = Gtk.CheckButton(label="Latest synced")
-        self._radio_latest.set_group(self._radio_age)   # mutual exclusion
+        self._radio_latest.set_group(self._radio_age)  # mutual exclusion
 
         adj_age = Gtk.Adjustment(value=self._defaults.age or 24, lower=1, upper=8760, step_increment=1)
         self._age_spin = Gtk.SpinButton(adjustment=adj_age, climb_rate=1, digits=0)
@@ -263,12 +268,14 @@ class MainWindow(Gtk.ApplicationWindow):
         box.set_margin_end(8)
         box.set_margin_top(8)
 
-        box.append(Gtk.Label(
-            label="Select which distro mirror lists to rank by download speed.\n"
-                  "Greyed out entries are not installed on this system.\n"
-                  "This is independent of the Arch mirrors tab — uncheck all to skip.",
-            xalign=0,
-        ))
+        box.append(
+            Gtk.Label(
+                label="Select which distro mirror lists to rank by download speed.\n"
+                "Greyed out entries are not installed on this system.\n"
+                "This is independent of the Arch mirrors tab — uncheck all to skip.",
+                xalign=0,
+            )
+        )
 
         # All primary sets — derived sets (v3/v4) are ranked automatically.
         all_primaries = [ms for ms in ALL_MIRROR_SETS if not ms.primary_id]
@@ -282,12 +289,12 @@ class MainWindow(Gtk.ApplicationWindow):
         # Pre-select the set that matches the running distro (if any).
         # Plain Arch uses reflector (Arch tab), so no distro set is pre-selected.
         _distro_to_set_id = {
-            "cachyos":      "cachyos",
-            "endeavouros":  "endeavouros",
-            "artix":        "artix",
-            "blackarch":    "blackarch",
-            "rebornos":     "rebornos",
-            "arcolinux":    "arcolinux",
+            "cachyos": "cachyos",
+            "endeavouros": "endeavouros",
+            "artix": "artix",
+            "blackarch": "blackarch",
+            "rebornos": "rebornos",
+            "arcolinux": "arcolinux",
         }
         auto_id = _distro_to_set_id.get(detect_distro_id(), "")
 
@@ -296,7 +303,7 @@ class MainWindow(Gtk.ApplicationWindow):
         hint_label.set_margin_start(4)
 
         groups = [
-            ("Distributions",          [ms for ms in all_primaries if not ms.is_repo]),
+            ("Distributions", [ms for ms in all_primaries if not ms.is_repo]),
             ("Third-party repositories", [ms for ms in all_primaries if ms.is_repo]),
         ]
 
@@ -366,9 +373,15 @@ class MainWindow(Gtk.ApplicationWindow):
         opts_grid.attach(self._workers_spin, 1, 0, 1, 1)
 
         opts_grid.attach(
-            Gtk.Label(label="Timeout and max mirrors are taken from the Arch mirrors tab.",
-                      xalign=0, css_classes=["dim-label"]),
-            0, 1, 3, 1,
+            Gtk.Label(
+                label="Timeout and max mirrors are taken from the Arch mirrors tab.",
+                xalign=0,
+                css_classes=["dim-label"],
+            ),
+            0,
+            1,
+            3,
+            1,
         )
 
         box.append(opts_frame)
@@ -407,17 +420,16 @@ class MainWindow(Gtk.ApplicationWindow):
     # ------------------------------------------------------------------
 
     def _collect_options(self) -> ReflectorOptions:
-        selected_codes = [
-            c.code
-            for c, cb in zip(self._countries, self._country_checks)
-            if cb.get_active()
-        ]
+        selected_codes = [c.code for c, cb in zip(self._countries, self._country_checks) if cb.get_active()]
         if "WW" in selected_codes:
             selected_codes = ["WW"]  # WW = no country filter; discard greyed-out individuals
         protocols = []
-        if self._https_cb.get_active(): protocols.append("https")
-        if self._http_cb.get_active():  protocols.append("http")
-        if self._rsync_cb.get_active(): protocols.append("rsync")
+        if self._https_cb.get_active():
+            protocols.append("https")
+        if self._http_cb.get_active():
+            protocols.append("http")
+        if self._rsync_cb.get_active():
+            protocols.append("rsync")
 
         extra_raw = self._extra_entry.get_text().strip()
         use_latest = self._radio_latest.get_active()
@@ -445,7 +457,7 @@ class MainWindow(Gtk.ApplicationWindow):
         selected_distros: list[MirrorSet] = []
         for ms in all_installed:
             if ms.primary_id:
-                continue   # derived sets are added below
+                continue  # derived sets are added below
             cb = self._distro_checks.get(ms.id)
             if cb and cb.get_active():
                 selected_distros.append(ms)

@@ -19,6 +19,7 @@ import traceback
 from pathlib import Path
 
 import gi
+
 gi.require_version("Gtk", "4.0")
 gi.require_version("Pango", "1.0")
 from gi.repository import Gtk, GLib, Pango  # noqa: E402
@@ -51,17 +52,17 @@ class DistroProgressWindow(Gtk.Window):
         super().__init__(application=app, title="Ranking distro mirrors…")
         self.set_default_size(950, 600)
 
-        self._sets        = mirror_sets
+        self._sets = mirror_sets
         self._max_workers = max_workers
-        self._timeout     = timeout
-        self._protocols   = protocols
+        self._timeout = timeout
+        self._protocols = protocols
         self._max_results = max_results
         self._country_names = country_names
-        self._on_done     = on_done
+        self._on_done = on_done
 
-        self._results:       dict[str, list[RankResult]] = {ms.id: [] for ms in mirror_sets}
-        self._finished:      set[str]                    = set()
-        self._total_mirrors: dict[str, int]              = {}
+        self._results: dict[str, list[RankResult]] = {ms.id: [] for ms in mirror_sets}
+        self._finished: set[str] = set()
+        self._total_mirrors: dict[str, int] = {}
 
         # Quick lookup by id
         self._set_by_id: dict[str, MirrorSet] = {ms.id: ms for ms in mirror_sets}
@@ -92,9 +93,9 @@ class DistroProgressWindow(Gtk.Window):
         overall_row.append(self._overall_status)
         root.append(overall_row)
 
-        self._list_boxes:    dict[str, Gtk.ListBox]    = {}
+        self._list_boxes: dict[str, Gtk.ListBox] = {}
         self._progress_bars: dict[str, Gtk.ProgressBar] = {}
-        self._pb_labels:     dict[str, Gtk.Label]      = {}
+        self._pb_labels: dict[str, Gtk.Label] = {}
 
         # Derived sets get no expander — just notes under their primary.
         derived_by_primary: dict[str, list[MirrorSet]] = {}
@@ -120,7 +121,7 @@ class DistroProgressWindow(Gtk.Window):
             pb_row.append(pb)
             pb_row.append(pb_lbl)
             self._progress_bars[ms.id] = pb
-            self._pb_labels[ms.id]     = pb_lbl
+            self._pb_labels[ms.id] = pb_lbl
             inner.append(pb_row)
 
             lb = Gtk.ListBox()
@@ -199,12 +200,13 @@ class DistroProgressWindow(Gtk.Window):
             reachable = sum(1 for r in results if r.reachable)
             if reachable == 0 and self._country_names:
                 GLib.idle_add(
-                    self._set_pb_text, ms.id,
+                    self._set_pb_text,
+                    ms.id,
                     "No reachable country mirrors — trying all…",
                 )
                 all_templates = fetch_mirrorlist(ms)
                 tested = {r.template for r in results}
-                extra  = [t for t in all_templates if t not in tested]
+                extra = [t for t in all_templates if t not in tested]
                 if extra:
                     self._total_mirrors[ms.id] += len(extra)
                     extra_results = rank_mirror_set(
@@ -218,7 +220,7 @@ class DistroProgressWindow(Gtk.Window):
                     results = results + extra_results
                     results.sort(key=lambda r: (not r.reachable, -r.speed))
                     if self._max_results:
-                        ok  = [r for r in results if r.reachable]
+                        ok = [r for r in results if r.reachable]
                         bad = [r for r in results if not r.reachable]
                         results = ok[: self._max_results] + bad
 
@@ -226,16 +228,14 @@ class DistroProgressWindow(Gtk.Window):
 
         except Exception:
             traceback.print_exc()
-            GLib.idle_add(self._set_pb_text, ms.id,
-                          f"Error: {traceback.format_exc().splitlines()[-1]}")
+            GLib.idle_add(self._set_pb_text, ms.id, f"Error: {traceback.format_exc().splitlines()[-1]}")
             GLib.idle_add(self._on_set_done, ms.id, [])
 
     # ------------------------------------------------------------------
     # Worker: derive a dependent set from its primary's results
     # ------------------------------------------------------------------
 
-    def _derive_worker(self, primary_ms: MirrorSet, derived_ms: MirrorSet,
-                       primary_results: list[RankResult]) -> None:
+    def _derive_worker(self, primary_ms: MirrorSet, derived_ms: MirrorSet, primary_results: list[RankResult]) -> None:
         """
         Build the derived set's mirrorlist from the primary's ranked results.
 
@@ -250,8 +250,7 @@ class DistroProgressWindow(Gtk.Window):
         from ..distros import fetch_mirrorlist
 
         try:
-            GLib.idle_add(self._set_pb_text, derived_ms.id,
-                          f"Deriving from {primary_ms.display_name}…")
+            GLib.idle_add(self._set_pb_text, derived_ms.id, f"Deriving from {primary_ms.display_name}…")
 
             # Fetch derived set's upstream list to know which mirrors support this arch
             derived_all = fetch_mirrorlist(derived_ms, country_names=self._country_names)
@@ -259,21 +258,21 @@ class DistroProgressWindow(Gtk.Window):
 
             derived_results: list[RankResult] = []
             for r in primary_results:
-                derived_tmpl = r.template.replace(
-                    primary_ms.arch_var, derived_ms.arch_var
-                )
+                derived_tmpl = r.template.replace(primary_ms.arch_var, derived_ms.arch_var)
                 # Only include mirrors verified to exist in the derived list
                 if derived_set and derived_tmpl not in derived_set:
                     continue
-                derived_results.append(RankResult(
-                    template=derived_tmpl,
-                    test_url=derived_ms.make_test_url(derived_tmpl),
-                    speed=r.speed,
-                    reachable=r.reachable,
-                ))
+                derived_results.append(
+                    RankResult(
+                        template=derived_tmpl,
+                        test_url=derived_ms.make_test_url(derived_tmpl),
+                        speed=r.speed,
+                        reachable=r.reachable,
+                    )
+                )
 
             if self._max_results:
-                ok  = [r for r in derived_results if r.reachable]
+                ok = [r for r in derived_results if r.reachable]
                 bad = [r for r in derived_results if not r.reachable]
                 derived_results = ok[: self._max_results] + bad
 
@@ -281,8 +280,7 @@ class DistroProgressWindow(Gtk.Window):
 
         except Exception:
             traceback.print_exc()
-            GLib.idle_add(self._set_pb_text, derived_ms.id,
-                          f"Error: {traceback.format_exc().splitlines()[-1]}")
+            GLib.idle_add(self._set_pb_text, derived_ms.id, f"Error: {traceback.format_exc().splitlines()[-1]}")
             GLib.idle_add(self._on_set_done, derived_ms.id, [])
 
     # ------------------------------------------------------------------
@@ -299,8 +297,8 @@ class DistroProgressWindow(Gtk.Window):
         """Update progress bar and add a live result row as each mirror finishes."""
         self._results[set_id].append(result)
 
-        pb    = self._progress_bars[set_id]
-        done  = len(self._results[set_id])
+        pb = self._progress_bars[set_id]
+        done = len(self._results[set_id])
         total = self._total_mirrors.get(set_id, 1)
         pb.set_fraction(min(1.0, done / total))
         self._pb_labels[set_id].set_text(f"{done}/{total}")
@@ -312,7 +310,7 @@ class DistroProgressWindow(Gtk.Window):
         return False
 
     def _append_result_row(self, lb: Gtk.ListBox, result: RankResult) -> None:
-        row     = Gtk.ListBoxRow()
+        row = Gtk.ListBoxRow()
         row_box = Gtk.Box(spacing=12)
         row_box.set_margin_start(6)
         row_box.set_margin_end(6)
@@ -321,8 +319,7 @@ class DistroProgressWindow(Gtk.Window):
 
         if result.reachable and result.speed > 0:
             speed_mb = result.speed / (1024 * 1024)
-            speed_label = Gtk.Label(label=f"{speed_mb:6.2f} MB/s",
-                                    xalign=1, width_chars=12)
+            speed_label = Gtk.Label(label=f"{speed_mb:6.2f} MB/s", xalign=1, width_chars=12)
             speed_label.add_css_class("success" if speed_mb > 1.0 else "warning")
         elif result.reachable:
             speed_label = Gtk.Label(label="up (no data)", xalign=1, width_chars=12)
@@ -341,11 +338,7 @@ class DistroProgressWindow(Gtk.Window):
 
     def _update_overall_progress(self) -> None:
         total_done = sum(len(v) for v in self._results.values())
-        total_all  = sum(
-            self._total_mirrors.get(ms.id, 0)
-            for ms in self._sets
-            if not ms.primary_id
-        )
+        total_all = sum(self._total_mirrors.get(ms.id, 0) for ms in self._sets if not ms.primary_id)
         if total_all > 0:
             self._overall_bar.set_fraction(min(1.0, total_done / total_all))
             self._overall_status.set_text(f"{total_done}/{total_all} mirrors tested")
@@ -404,12 +397,12 @@ class DistroProgressWindow(Gtk.Window):
         self._btn_box.append(close_btn)
 
     def _on_save_all(self, _: Gtk.Button) -> None:
-        errors:        list[str]              = []
-        skipped:       list[str]              = []
+        errors: list[str] = []
+        skipped: list[str] = []
         files_to_save: list[tuple[str, Path]] = []
 
         for ms in self._sets:
-            results   = self._results.get(ms.id, [])
+            results = self._results.get(ms.id, [])
             reachable = [r for r in results if r.reachable]
 
             if not reachable:
@@ -426,8 +419,7 @@ class DistroProgressWindow(Gtk.Window):
 
         parts: list[str] = []
         if skipped:
-            parts.append("Skipped (0 reachable — existing file kept):\n"
-                         + "\n".join(f"  • {n}" for n in skipped))
+            parts.append("Skipped (0 reachable — existing file kept):\n" + "\n".join(f"  • {n}" for n in skipped))
         if errors:
             parts.append("Save errors:\n" + "\n".join(f"  • {e}" for e in errors))
 
@@ -436,7 +428,7 @@ class DistroProgressWindow(Gtk.Window):
         if parts:
             dialog.set_message("Issues while saving")
             dialog.set_detail("\n\n".join(parts))
-            dialog.choose(self, None, lambda *_: None)   # just dismiss
+            dialog.choose(self, None, lambda *_: None)  # just dismiss
         else:
             dialog.set_message("All mirrorlists saved.")
             dialog.choose(self, None, lambda *_: self._finish())

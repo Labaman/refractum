@@ -16,16 +16,19 @@ import requests
 # Data types
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class CountryDetectionResult:
     """Holds the outcome of a country detection attempt."""
-    code: str          # two-letter ISO code, e.g. "DE"
-    method: str        # which method found it, for logging
+
+    code: str  # two-letter ISO code, e.g. "DE"
+    method: str  # which method found it, for logging
 
 
 # ---------------------------------------------------------------------------
 # Individual detection methods
 # ---------------------------------------------------------------------------
+
 
 def _detect_via_ipinfo(timeout: int = 10) -> str | None:
     """Ask https://ipinfo.io/country for the current country code."""
@@ -73,7 +76,10 @@ def _detect_via_geoiplookup() -> str | None:
     try:
         result = subprocess.run(
             ["geoiplookup", ip],
-            capture_output=True, text=True, timeout=10, check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
         )
         match = re.search(r":\s+([A-Z]{2}),", result.stdout)
         if match:
@@ -93,7 +99,10 @@ def _get_public_ipv4() -> str | None:
     try:
         result = subprocess.run(
             ["dig", "-4", "TXT", "+short", "o-o.myaddr.l.google.com", "@ns1.google.com"],
-            capture_output=True, text=True, timeout=10, check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
         )
         ip = result.stdout.strip().strip('"')
         if re.fullmatch(r"\d{1,3}(\.\d{1,3}){3}", ip):
@@ -108,9 +117,9 @@ def _get_public_ipv4() -> str | None:
 # ---------------------------------------------------------------------------
 
 _METHODS: list[tuple[str, Callable[[], str | None]]] = [
-    ("ipinfo",      _detect_via_ipinfo),
+    ("ipinfo", _detect_via_ipinfo),
     ("geoiplookup", _detect_via_geoiplookup),
-    ("locale",      _detect_via_locale),
+    ("locale", _detect_via_locale),
 ]
 
 

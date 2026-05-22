@@ -32,15 +32,16 @@ from pathlib import Path
 from .reflector import ReflectorOptions
 
 
-USER_CONF             = Path.home() / ".config" / "refract" / "settings.conf"
-GLOBAL_CONF           = Path("/etc/refract.conf")
-REFLECTOR_CONF        = Path("/etc/xdg/reflector/reflector.conf")
+USER_CONF = Path.home() / ".config" / "refract" / "settings.conf"
+GLOBAL_CONF = Path("/etc/refract.conf")
+REFLECTOR_CONF = Path("/etc/xdg/reflector/reflector.conf")
 REFLECTOR_SIMPLE_CONF = Path("/etc/reflector-simple.conf")
 
 
 @dataclass
 class ReflectorConfig:
     """Options parsed from a reflector-format config file."""
+
     countries: list[str] = field(default_factory=list)
     protocols: list[str] = field(default_factory=list)
     sort: str = ""
@@ -130,9 +131,9 @@ def save_global_config(opts: ReflectorOptions, path: Path = GLOBAL_CONF) -> None
             tmp_path = Path(tmp.name)
 
         result = subprocess.run(
-            ["pkexec", "bash", "-c",
-             f"cp {shlex.quote(str(tmp_path))} {shlex.quote(str(path))}"],
-            timeout=60, check=False,
+            ["pkexec", "bash", "-c", f"cp {shlex.quote(str(tmp_path))} {shlex.quote(str(path))}"],
+            timeout=60,
+            check=False,
         )
         if result.returncode == 126:
             raise PermissionError("User cancelled the pkexec authorisation dialog")

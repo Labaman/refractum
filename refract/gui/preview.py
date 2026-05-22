@@ -12,6 +12,7 @@ import re
 from pathlib import Path
 
 import gi
+
 gi.require_version("Gtk", "4.0")
 gi.require_version("Pango", "1.0")
 from gi.repository import Gtk, Pango  # noqa: E402
@@ -22,13 +23,13 @@ from ..mirrorlist import save_mirrorlist
 # ---------------------------------------------------------------------------
 # Colour constants (hex strings for TextTag foreground)
 # ---------------------------------------------------------------------------
-_C_COMMENT   = "#888888"   # grey  — plain comment lines
-_C_HEADER    = "#4caf50"   # green — ## Country Name
-_C_SERVER    = "#64b5f6"   # blue  — Server = https://…
-_C_URL       = "#90caf9"   # light blue — the URL part of Server line
-_C_DIFF_ADD  = "#1b5e20"   # dark green background — added lines
-_C_DIFF_REM  = "#b71c1c"   # dark red background   — removed lines
-_C_DIFF_META = "#555555"   # grey  — @@ … @@ context markers
+_C_COMMENT = "#888888"  # grey  — plain comment lines
+_C_HEADER = "#4caf50"  # green — ## Country Name
+_C_SERVER = "#64b5f6"  # blue  — Server = https://…
+_C_URL = "#90caf9"  # light blue — the URL part of Server line
+_C_DIFF_ADD = "#1b5e20"  # dark green background — added lines
+_C_DIFF_REM = "#b71c1c"  # dark red background   — removed lines
+_C_DIFF_META = "#555555"  # grey  — @@ … @@ context markers
 
 
 class MirrorlistPreviewWindow(Gtk.Window):
@@ -53,9 +54,9 @@ class MirrorlistPreviewWindow(Gtk.Window):
         super().__init__(application=app, title="New mirrorlist — confirm save")
         self.set_default_size(860, 600)
 
-        self._content  = content
-        self._dest     = dest
-        self._on_saved  = on_saved
+        self._content = content
+        self._dest = dest
+        self._on_saved = on_saved
         self._on_discard = on_discard
 
         self._build_ui()
@@ -109,8 +110,7 @@ class MirrorlistPreviewWindow(Gtk.Window):
 
         mirror_count = self._content.count("\nServer = ")
         countries = re.findall(r"^## (.+)$", self._content, re.MULTILINE)
-        countries = [c.strip() for c in countries
-                     if not c.strip().startswith("Generated") and len(c.strip()) < 40]
+        countries = [c.strip() for c in countries if not c.strip().startswith("Generated") and len(c.strip()) < 40]
 
         def _stat(label: str, value: str) -> Gtk.Box:
             box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
@@ -143,14 +143,14 @@ class MirrorlistPreviewWindow(Gtk.Window):
         # Toggle buttons for view mode
         # Gtk.ToggleButton: like a CheckButton but looks like a Button.
         # We link them so only one can be active at a time.
-        self._btn_new  = Gtk.ToggleButton(label="New mirrorlist")
+        self._btn_new = Gtk.ToggleButton(label="New mirrorlist")
         self._btn_diff = Gtk.ToggleButton(label="Diff vs current")
 
         self._btn_new.set_active(True)
         # Link the buttons: activating one deactivates the other
         self._btn_diff.set_group(self._btn_new)
 
-        self._btn_new.connect("toggled",  self._on_view_toggled)
+        self._btn_new.connect("toggled", self._on_view_toggled)
         self._btn_diff.connect("toggled", self._on_view_toggled)
 
         bar.append(self._btn_new)
@@ -216,15 +216,15 @@ class MirrorlistPreviewWindow(Gtk.Window):
         """
         t = self._buf  # shorthand
 
-        t.create_tag("comment",    foreground=_C_COMMENT, style=Pango.Style.ITALIC)
-        t.create_tag("header",     foreground=_C_HEADER,  weight=Pango.Weight.BOLD)
-        t.create_tag("server_kw",  foreground=_C_SERVER,  weight=Pango.Weight.BOLD)
-        t.create_tag("url",        foreground=_C_URL)
+        t.create_tag("comment", foreground=_C_COMMENT, style=Pango.Style.ITALIC)
+        t.create_tag("header", foreground=_C_HEADER, weight=Pango.Weight.BOLD)
+        t.create_tag("server_kw", foreground=_C_SERVER, weight=Pango.Weight.BOLD)
+        t.create_tag("url", foreground=_C_URL)
 
         # Diff tags use background colour instead of foreground
-        t.create_tag("diff_add",   background=_C_DIFF_ADD,  foreground="#ffffff")
-        t.create_tag("diff_rem",   background=_C_DIFF_REM,  foreground="#ffffff")
-        t.create_tag("diff_meta",  foreground=_C_DIFF_META, style=Pango.Style.ITALIC)
+        t.create_tag("diff_add", background=_C_DIFF_ADD, foreground="#ffffff")
+        t.create_tag("diff_rem", background=_C_DIFF_REM, foreground="#ffffff")
+        t.create_tag("diff_meta", foreground=_C_DIFF_META, style=Pango.Style.ITALIC)
 
     def _insert_highlighted(self, text: str) -> None:
         """
@@ -239,7 +239,7 @@ class MirrorlistPreviewWindow(Gtk.Window):
         Gtk.TextIter is a cursor into the buffer — like a file seek position.
         buf.get_iter_at_offset(n) returns an iter at character position n.
         """
-        self._buf.set_text("")   # clear
+        self._buf.set_text("")  # clear
 
         for line in text.splitlines(keepends=True):
             start_offset = self._buf.get_char_count()
@@ -247,7 +247,7 @@ class MirrorlistPreviewWindow(Gtk.Window):
             end_offset = self._buf.get_char_count()
 
             start = self._buf.get_iter_at_offset(start_offset)
-            end   = self._buf.get_iter_at_offset(end_offset)
+            end = self._buf.get_iter_at_offset(end_offset)
 
             stripped = line.strip()
 
@@ -277,13 +277,15 @@ class MirrorlistPreviewWindow(Gtk.Window):
         if self._dest.exists():
             old_text = self._dest.read_text(encoding="utf-8")
 
-        diff_lines = list(difflib.unified_diff(
-            old_text.splitlines(keepends=True),
-            new_text.splitlines(keepends=True),
-            fromfile=f"current {self._dest.name}",
-            tofile=f"new {self._dest.name}",
-            lineterm="",
-        ))
+        diff_lines = list(
+            difflib.unified_diff(
+                old_text.splitlines(keepends=True),
+                new_text.splitlines(keepends=True),
+                fromfile=f"current {self._dest.name}",
+                tofile=f"new {self._dest.name}",
+                lineterm="",
+            )
+        )
 
         self._buf.set_text("")
 
@@ -297,7 +299,7 @@ class MirrorlistPreviewWindow(Gtk.Window):
             end_offset = self._buf.get_char_count()
 
             start = self._buf.get_iter_at_offset(start_offset)
-            end   = self._buf.get_iter_at_offset(end_offset)
+            end = self._buf.get_iter_at_offset(end_offset)
 
             if line.startswith("+") and not line.startswith("+++"):
                 self._buf.apply_tag_by_name("diff_add", start, end)
@@ -314,7 +316,7 @@ class MirrorlistPreviewWindow(Gtk.Window):
 
     def _on_view_toggled(self, btn: Gtk.ToggleButton) -> None:
         if not btn.get_active():
-            return   # only react to the button becoming active
+            return  # only react to the button becoming active
         if btn is self._btn_diff:
             self._insert_diff(self._content)
         else:

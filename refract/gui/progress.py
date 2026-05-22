@@ -12,6 +12,7 @@ import tempfile
 import threading
 
 import gi
+
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, GLib  # noqa: E402
 
@@ -117,9 +118,7 @@ class ProgressWindow(Gtk.Window):
         """
         cmd = build_command(self._options)
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".mirrorlist", delete=False
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".mirrorlist", delete=False) as tmp:
             tmp_path = tmp.name
 
         try:

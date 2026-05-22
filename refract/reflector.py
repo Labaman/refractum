@@ -20,12 +20,14 @@ from collections.abc import Generator
 # Country model
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class Country:
     """A single country entry from `reflector --list-countries`."""
+
     name: str
-    code: str    # two-letter ISO, e.g. "DE"
-    count: int   # number of available mirrors
+    code: str  # two-letter ISO, e.g. "DE"
+    count: int  # number of available mirrors
 
     def __str__(self) -> str:
         return f"{self.name} ({self.code})"
@@ -38,6 +40,7 @@ WORLDWIDE = Country(name="Worldwide", code="WW", count=0)
 # ---------------------------------------------------------------------------
 # Fetch country list
 # ---------------------------------------------------------------------------
+
 
 def get_countries() -> list[Country]:
     """
@@ -55,7 +58,10 @@ def get_countries() -> list[Country]:
     try:
         result = subprocess.run(
             ["reflector", "--list-countries"],
-            capture_output=True, text=True, timeout=30, check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
         )
     except FileNotFoundError as exc:
         raise RuntimeError("reflector is not installed or not in PATH") from exc
@@ -78,8 +84,8 @@ def _sort_key(name: str) -> str:
     return "".join(ch for ch in nfd if not unicodedata.combining(ch)).casefold()
 
 
-_MULTI_SPACE_RE = re.compile(r'\s{2,}')
-_ISO2_RE        = re.compile(r'^[A-Z]{2}$')
+_MULTI_SPACE_RE = re.compile(r"\s{2,}")
+_ISO2_RE = re.compile(r"^[A-Z]{2}$")
 
 
 def _parse_country_list(output: str) -> list[Country]:
@@ -106,8 +112,8 @@ def _parse_country_list(output: str) -> list[Country]:
         if len(parts) < 3:
             continue
 
-        name  = parts[0].strip()
-        code  = parts[1].strip()
+        name = parts[0].strip()
+        code = parts[1].strip()
         try:
             count = int(parts[2].strip())
         except ValueError:
@@ -123,15 +129,17 @@ def _parse_country_list(output: str) -> list[Country]:
 # Build reflector command
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ReflectorOptions:
     """All options the user can configure in the GUI."""
-    countries: list[str] = field(default_factory=list)    # ISO codes
-    protocols: list[str] = field(default_factory=list)    # ["https", "http"]
+
+    countries: list[str] = field(default_factory=list)  # ISO codes
+    protocols: list[str] = field(default_factory=list)  # ["https", "http"]
     sort: str = "rate"
     number: int = 10
     use_latest: bool = False  # True = --latest N (N most recent), False = --age N (freshness window)
-    age: int | None = None        # --age N (hours), None = omit
+    age: int | None = None  # --age N (hours), None = omit
     download_timeout: int = 5
     threads: int | None = None
     extra_args: list[str] = field(default_factory=list)
@@ -149,7 +157,7 @@ def build_command(opts: ReflectorOptions) -> list[str]:
     cmd = ["reflector", "--verbose"]
 
     for code in opts.countries:
-        if code and code != "WW":       # skip Worldwide — it means "no filter"
+        if code and code != "WW":  # skip Worldwide — it means "no filter"
             cmd += ["-c", code]
 
     for proto in opts.protocols:
@@ -180,6 +188,7 @@ def build_command(opts: ReflectorOptions) -> list[str]:
 # Run reflector and stream output
 # ---------------------------------------------------------------------------
 
+
 def run_reflector(
     cmd: list[str],
     output_file: str,
@@ -205,7 +214,7 @@ def run_reflector(
     with open(output_file, "w", encoding="utf-8") as out_fh:
         process = subprocess.Popen(
             cmd,
-            stdout=out_fh,      # mirrorlist goes directly to the file
+            stdout=out_fh,  # mirrorlist goes directly to the file
             stderr=subprocess.PIPE,
             text=True,
         )

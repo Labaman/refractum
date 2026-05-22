@@ -24,6 +24,7 @@ ARCH_MIRRORLIST_URL = "https://archlinux.org/mirrorlist/all"
 # Fetch the full Arch mirrorlist
 # ---------------------------------------------------------------------------
 
+
 def fetch_full_mirrorlist(timeout: int = 15) -> str:
     """
     Download the complete Arch Linux mirrorlist from archlinux.org.
@@ -39,6 +40,7 @@ def fetch_full_mirrorlist(timeout: int = 15) -> str:
 # ---------------------------------------------------------------------------
 # Annotate mirrorlist with country names
 # ---------------------------------------------------------------------------
+
 
 def annotate_with_countries(
     ranked_content: str,
@@ -96,7 +98,7 @@ def _extract_servers(content: str) -> list[str]:
     servers = []
     for line in content.splitlines():
         if line.startswith("Server = "):
-            servers.append(line[len("Server = "):].strip())
+            servers.append(line[len("Server = ") :].strip())
     return servers
 
 
@@ -115,7 +117,7 @@ def _parse_full_mirrorlist(content: str) -> dict[str, list[str]]:
             current = line[3:].strip()
             result.setdefault(current, [])
         elif line.startswith("#Server = ") and current:
-            url = line[len("#Server = "):].strip()
+            url = line[len("#Server = ") :].strip()
             result[current].append(url)
 
     return result
@@ -124,6 +126,7 @@ def _parse_full_mirrorlist(content: str) -> dict[str, list[str]]:
 # ---------------------------------------------------------------------------
 # Save mirrorlist
 # ---------------------------------------------------------------------------
+
 
 def save_mirrorlist(content: str, dest: Path = MIRRORLIST_PATH) -> None:
     """Save a single mirrorlist. Delegates to save_mirrorlist_batch."""
@@ -148,12 +151,10 @@ def save_mirrorlist_batch(files: list[tuple[str, Path]]) -> None:
     if not files:
         return
 
-    tmp_pairs: list[tuple[Path, Path]] = []   # (tmp_path, dest_path)
+    tmp_pairs: list[tuple[Path, Path]] = []  # (tmp_path, dest_path)
     try:
         for content, dest in files:
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".mirrorlist", delete=False
-            ) as tmp:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".mirrorlist", delete=False) as tmp:
                 tmp.write(content)
                 tmp_pairs.append((Path(tmp.name), dest))
 
@@ -168,7 +169,8 @@ def save_mirrorlist_batch(files: list[tuple[str, Path]]) -> None:
 
         result = subprocess.run(
             ["pkexec", "bash", "-c", script],
-            timeout=60, check=False,
+            timeout=60,
+            check=False,
         )
         if result.returncode == 126:
             raise PermissionError("User cancelled the pkexec authorisation dialog")
