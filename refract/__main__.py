@@ -12,7 +12,7 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, GLib  # noqa: E402
 
 
-def _log_writer(log_level, fields, n_fields, user_data):
+def _log_writer(log_level, fields, n_fields, user_data):  # pylint: disable=unused-argument
     # GTK4 bug: scrollbar slider reports min size -2 before CSS is applied.
     # Harmless — GTK clamps it to 0 internally. Suppress to avoid noise.
     for field in fields:

@@ -41,8 +41,6 @@ disable = [
     "duplicate-code",
     # GUI exception handlers intentionally catch broadly to show error dialogs
     "broad-exception-caught",
-    # GLib callbacks require fixed signatures; unused args are mandated by the API
-    "unused-argument",
     # one-liner if/append style is intentional
     "multiple-statements",
     # 'bar' is a legitimate abbreviation for progress bar (Gtk.ProgressBar)
