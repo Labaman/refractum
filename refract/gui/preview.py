@@ -275,7 +275,7 @@ class MirrorlistPreviewWindow(Gtk.Window):
         """
         old_text = ""
         if self._dest.exists():
-            old_text = self._dest.read_text()
+            old_text = self._dest.read_text(encoding="utf-8")
 
         diff_lines = list(difflib.unified_diff(
             old_text.splitlines(keepends=True),

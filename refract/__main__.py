@@ -29,6 +29,7 @@ def _log_writer(log_level, fields, n_fields, user_data):  # pylint: disable=unus
                 pass
     return GLib.log_writer_default(log_level, fields)
 
+
 GLib.log_set_writer_func(_log_writer, None)
 
 from .config import load_reflector_config, save_user_config, USER_CONF
@@ -198,14 +199,9 @@ def _on_ranking_done(app, tmp_path, result, countries) -> None:
     annotated = ranked_content
     try:
         full_ml = fetch_full_mirrorlist()
-        selected = [c for c in countries if c.code in result.options.countries]
         annotated = annotate_with_countries(
             ranked_content=ranked_content,
             full_mirrorlist=full_ml,
-            selected_countries=selected,
-            https_selected="https" in result.options.protocols,
-            http_selected="http"   in result.options.protocols,
-            rsync_selected="rsync" in result.options.protocols,
         )
     except Exception:
         pass

@@ -16,8 +16,6 @@ from pathlib import Path
 
 import requests
 
-from .reflector import Country
-
 MIRRORLIST_PATH = Path("/etc/pacman.d/mirrorlist")
 ARCH_MIRRORLIST_URL = "https://archlinux.org/mirrorlist/all"
 
@@ -45,10 +43,6 @@ def fetch_full_mirrorlist(timeout: int = 15) -> str:
 def annotate_with_countries(
     ranked_content: str,
     full_mirrorlist: str,
-    selected_countries: list[Country],
-    https_selected: bool,
-    http_selected: bool,
-    rsync_selected: bool,
 ) -> str:
     """
     Add country header comments to the ranked mirrorlist.
@@ -86,17 +80,6 @@ def annotate_with_countries(
 
     for server_url in ranked_servers:
         country = server_to_country.get(server_url)
-
-        # Handle Worldwide separately — add matching protocol servers
-        if any(c.code == "WW" for c in selected_countries) and country == "Worldwide":
-            if current_country != "Worldwide":
-                lines.append("")
-                lines.append("## Worldwide")
-                current_country = "Worldwide"
-            protocol = _url_protocol(server_url)
-            if _protocol_selected(protocol, https_selected, http_selected, rsync_selected):
-                lines.append(f"Server = {server_url}")
-            continue
 
         if country and country != current_country:
             lines.append("")
@@ -136,27 +119,6 @@ def _parse_full_mirrorlist(content: str) -> dict[str, list[str]]:
             result[current].append(url)
 
     return result
-
-
-def _url_protocol(url: str) -> str:
-    """Return 'https', 'http', or 'rsync' from a URL string."""
-    if url.startswith("https://"):
-        return "https"
-    if url.startswith("http://"):
-        return "http"
-    if url.startswith("rsync://"):
-        return "rsync"
-    return ""
-
-
-def _protocol_selected(
-    protocol: str, https: bool, http: bool, rsync: bool
-) -> bool:
-    return (
-        (protocol == "https" and https)
-        or (protocol == "http" and http)
-        or (protocol == "rsync" and rsync)
-    )
 
 
 # ---------------------------------------------------------------------------

@@ -446,7 +446,8 @@ class MainWindow(Gtk.ApplicationWindow):
         for ms in all_installed:
             if ms.primary_id:
                 continue   # derived sets are added below
-            if self._distro_checks.get(ms.id, Gtk.CheckButton()).get_active():
+            cb = self._distro_checks.get(ms.id)
+            if cb and cb.get_active():
                 selected_distros.append(ms)
                 # Include derived sets (v3/v4 etc.) automatically
                 for derived in all_installed:

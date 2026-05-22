@@ -104,6 +104,8 @@ def parse_mirrorlist(text: str, include_commented: bool = True) -> list[str]:
             if m:
                 servers.append(m.group(1).strip())
     return servers
+
+
 # Words in headers that are never country names
 _SKIP_WORDS = frozenset(("server", "generated", "mirrorlist", "disabled", "enabled",
                          "rerouted", "deprecated", "note", "todo", "cachyos"))
@@ -187,7 +189,7 @@ def fetch_mirrorlist(
 
     if text is None:
         if ms.mirrorlist_path.exists():
-            text = ms.mirrorlist_path.read_text()
+            text = ms.mirrorlist_path.read_text(encoding="utf-8")
             include_commented = False
         else:
             return []

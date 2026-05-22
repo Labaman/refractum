@@ -167,7 +167,7 @@ def _build_config_lines(opts: ReflectorOptions) -> list[str]:
 
 def _read_clean_lines(path: Path) -> list[str]:
     lines = []
-    for line in path.read_text().splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         line = line.split("#", 1)[0].strip()
         line = line.strip("\"'")
         if line:
