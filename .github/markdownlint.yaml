@@ -1,0 +1,5 @@
+default: true
+MD013: false          # line length — not enforced
+MD024:
+  siblings_only: true # changelog has repeated ### Added / ### Fixed across versions
+MD032: false          # lists directly after headings (keep-a-changelog style)

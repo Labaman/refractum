@@ -1,0 +1,17 @@
+{
+  "version": "0.2",
+  "language": "en,ru",
+  "import": [
+    "@cspell/dict-en_us/cspell-ext.json",
+    "@cspell/dict-ru_ru/cspell-ext.json"
+  ],
+  "words": [
+    "refract",
+    "CachyOS", "EndeavourOS", "ArcoLinux", "RebornOS", "BlackArch", "Artix",
+    "Labaman", "archlinuxcn", "Arch4edu",
+    "trizen", "paru",
+    "pkexec", "polkit", "mirrorlist", "mirrorlists", "reflector",
+    "PyGObject", "PKGBUILD", "SRCINFO", "hatchling",
+    "TTFB", "AUR"
+  ]
+}
