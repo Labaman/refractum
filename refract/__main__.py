@@ -153,27 +153,27 @@ def _handle_main_result(app, result, countries) -> None:
             protocols=result.options.protocols or ["https"],
             max_results=result.options.number,
             country_names=country_names,
-            on_done=lambda: _start_arch_ranking(app, result, countries),
+            on_done=lambda: _start_arch_ranking(app, result),
         )
         distro_win.present()
         distro_win.start()
     else:
-        _start_arch_ranking(app, result, countries)
+        _start_arch_ranking(app, result)
 
 
-def _start_arch_ranking(app: Gtk.Application, result, countries) -> None:
+def _start_arch_ranking(app: Gtk.Application, result) -> None:
     """Step 2b/3: Run reflector and show progress."""
     progress = ProgressWindow(
         app=app,
         options=result.options,
         expected_count=result.options.number,
-        on_done=lambda path: _on_ranking_done(app, path, result, countries),
+        on_done=lambda path: _on_ranking_done(app, path),
     )
     progress.present()
     progress.start()
 
 
-def _on_ranking_done(app, tmp_path, result, countries) -> None:
+def _on_ranking_done(app, tmp_path) -> None:
     """Step 4: reflector finished — annotate and show preview."""
     if tmp_path is None:
         return
