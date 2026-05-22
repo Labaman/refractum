@@ -1,5 +1,7 @@
-default: true
-MD013: false          # line length — not enforced
-MD024:
-  siblings_only: true # changelog has repeated ### Added / ### Fixed across versions
-MD032: false          # lists directly after headings (keep-a-changelog style)
+config:
+  default: true
+  MD013: false   # line length — not enforced
+  MD022: false   # blanks around headings — keep-a-changelog style
+  MD024:
+    siblings_only: true  # ### Added / ### Fixed repeated across versions
+  MD032: false   # blanks around lists — keep-a-changelog style
