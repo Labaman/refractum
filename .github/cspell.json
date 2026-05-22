@@ -10,8 +10,11 @@
     "CachyOS", "EndeavourOS", "ArcoLinux", "RebornOS", "BlackArch", "Artix",
     "Labaman", "archlinuxcn", "Arch4edu",
     "trizen", "paru",
-    "pkexec", "polkit", "mirrorlist", "mirrorlists", "reflector",
-    "PyGObject", "PKGBUILD", "SRCINFO", "hatchling",
+    "pkexec", "polkit", "pacman", "makepkg", "mirrorlist", "mirrorlists", "reflector",
+    "PyGObject", "gobject", "PKGBUILD", "SRCINFO", "hatchling",
+    "shlex",
+    "Optimised",
+    "Réunion", "Türkiye",
     "TTFB", "AUR"
   ]
 }
