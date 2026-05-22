@@ -22,10 +22,33 @@ packages = ["refract"]
 disable = [
     "missing-module-docstring",
     "missing-function-docstring",
+    "missing-class-docstring",
     "too-few-public-methods",
     "too-many-instance-attributes",
     "too-many-arguments",
     "too-many-locals",
+    "too-many-positional-arguments",
+    "too-many-branches",
+    "too-many-statements",
+    # GTK requires gi.require_version() before from gi.repository import
+    "wrong-import-position",
+    "wrong-import-order",
+    # GTK pattern: widgets are created in _build_ui(), not in __init__
+    "attribute-defined-outside-init",
+    # some lazy imports inside functions are intentional
+    "import-outside-toplevel",
+    # GTK margin boilerplate is legitimately repeated across windows
+    "duplicate-code",
+    # GUI exception handlers intentionally catch broadly to show error dialogs
+    "broad-exception-caught",
+    # GLib callbacks require fixed signatures; unused args are mandated by the API
+    "unused-argument",
+    # one-liner if/append style is intentional
+    "multiple-statements",
+    # 'bar' is a legitimate abbreviation for progress bar (Gtk.ProgressBar)
+    "disallowed-name",
+    # Popen inside a generator cannot be restructured as a context manager
+    "consider-using-with",
 ]
 
 [tool.pylint.format]
