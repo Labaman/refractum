@@ -58,8 +58,6 @@ class MirrorlistPreviewWindow(Gtk.Window):
         self._on_saved  = on_saved
         self._on_discard = on_discard
 
-        self._diff_text: str | None = None   # computed lazily
-
         self._build_ui()
 
     # ------------------------------------------------------------------

@@ -182,12 +182,10 @@ class ProgressWindow(Gtk.Window):
         else:
             self._status_label.set_text(f"reflector exited with code {returncode}.")
             self._show_buttons(success=False)
-
-        # Re-enable window close
-        self.connect("close-request", lambda _: False)
         return False
 
     def _on_error(self, message: str) -> bool:
+        self._progress.set_fraction(1.0)
         self._status_label.set_text(f"Error: {message}")
         self._append_log(f"\n[ERROR] {message}")
         self._show_buttons(success=False)

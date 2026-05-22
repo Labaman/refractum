@@ -9,6 +9,7 @@ Two tabs via Gtk.Notebook:
 from __future__ import annotations
 
 import gi
+import math
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk  # noqa: E402
 
@@ -128,12 +129,20 @@ class MainWindow(Gtk.ApplicationWindow):
         grid.set_margin_top(4)
 
         pre_selected = set(self._defaults.countries) | {self._local_code}
+        ww_active = "WW" in pre_selected
+
+        n = len(self._countries)
+        rows = math.ceil(n / self._columns)
 
         for idx, country in enumerate(self._countries):
             cb = Gtk.CheckButton(label=country.name)
             cb.set_active(country.code in pre_selected)
+            if country.code != "WW":
+                cb.set_sensitive(not ww_active)
             self._country_checks.append(cb)
-            grid.attach(cb, idx % self._columns, idx // self._columns, 1, 1)
+            col = idx // rows
+            row = idx % rows
+            grid.attach(cb, col, row, 1, 1)
             if country.code == "WW":
                 cb.connect("toggled", self._on_worldwide_toggled)
             else:
@@ -383,6 +392,8 @@ class MainWindow(Gtk.ApplicationWindow):
             for c, cb in zip(self._countries, self._country_checks)
             if cb.get_active()
         ]
+        if "WW" in selected_codes:
+            selected_codes = ["WW"]  # WW = no country filter; discard greyed-out individuals
         protocols = []
         if self._https_cb.get_active(): protocols.append("https")
         if self._http_cb.get_active():  protocols.append("http")
@@ -453,13 +464,12 @@ class MainWindow(Gtk.ApplicationWindow):
     # ------------------------------------------------------------------
 
     def _on_worldwide_toggled(self, cb: Gtk.CheckButton) -> None:
-        if self._updating_countries or not cb.get_active():
+        if self._updating_countries:
             return
-        self._updating_countries = True
+        ww_active = cb.get_active()
         for check, country in zip(self._country_checks, self._countries):
             if country.code != "WW":
-                check.set_active(False)
-        self._updating_countries = False
+                check.set_sensitive(not ww_active)
 
     def _on_country_toggled(self, cb: Gtk.CheckButton) -> None:
         if self._updating_countries or not cb.get_active():

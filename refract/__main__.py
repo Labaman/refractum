@@ -31,7 +31,7 @@ def _log_writer(log_level, fields, n_fields, user_data):
 
 GLib.log_set_writer_func(_log_writer, None)
 
-from .config import load_reflector_config, save_user_config
+from .config import load_reflector_config, save_user_config, USER_CONF
 from .country_detect import detect_country
 from .reflector import get_countries, ReflectorOptions
 from .mirrorlist import (
@@ -101,7 +101,6 @@ def _on_activate(app: Gtk.Application) -> None:
 
     # Bootstrap: write own settings file on first launch so subsequent
     # launches never need to read third-party configs again.
-    from .config import USER_CONF
     if not USER_CONF.exists():
         save_user_config(defaults)
 
@@ -131,13 +130,11 @@ def _show_main_window(app, countries, local_code, defaults) -> None:
 
 
 def _handle_main_result(app, result, countries) -> None:
-    print(f"[refract] result: cancelled={result.cancelled} distro_sets={len(result.distro_sets)}", file=sys.stderr)
     if result.cancelled:
         return
 
     # Step 2a: distro mirror ranking (if any sets selected)
     if result.distro_sets:
-        print(f"[refract] opening DistroProgressWindow for: {[ms.id for ms in result.distro_sets]}", file=sys.stderr)
         # Convert selected country codes → names for distro mirrorlist filtering.
         # "WW" means Worldwide (no filter), so we exclude it.
         selected_codes = set(result.options.countries) - {"WW"}
@@ -158,14 +155,11 @@ def _handle_main_result(app, result, countries) -> None:
         distro_win.present()
         distro_win.start()
     else:
-        # Step 2b: go straight to Arch ranking
-        print("[refract] going straight to arch ranking", file=sys.stderr)
         _start_arch_ranking(app, result, countries)
 
 
 def _start_arch_ranking(app: Gtk.Application, result, countries) -> None:
     """Step 2b/3: Run reflector and show progress."""
-    print("[refract] _start_arch_ranking: opening ProgressWindow", file=sys.stderr)
     progress = ProgressWindow(
         app=app,
         options=result.options,

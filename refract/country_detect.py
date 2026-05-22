@@ -5,7 +5,8 @@ from __future__ import annotations
 import locale
 import re
 import subprocess
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from typing import Callable
 
 import requests
 
@@ -19,7 +20,6 @@ class CountryDetectionResult:
     """Holds the outcome of a country detection attempt."""
     code: str          # two-letter ISO code, e.g. "DE"
     method: str        # which method found it, for logging
-    name: str = ""     # optional: human-readable name
 
 
 # ---------------------------------------------------------------------------
@@ -106,7 +106,7 @@ def _get_public_ipv4() -> str | None:
 # Public API
 # ---------------------------------------------------------------------------
 
-_METHODS: list[tuple[str, callable]] = [
+_METHODS: list[tuple[str, Callable[[], str | None]]] = [
     ("ipinfo",      _detect_via_ipinfo),
     ("geoiplookup", _detect_via_geoiplookup),
     ("locale",      _detect_via_locale),

@@ -16,10 +16,12 @@ from __future__ import annotations
 
 import threading
 import traceback
+from pathlib import Path
 
 import gi
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gtk, GLib  # noqa: E402
+gi.require_version("Pango", "1.0")
+from gi.repository import Gtk, GLib, Pango  # noqa: E402
 
 from ..distros import MirrorSet
 from ..ranker import RankResult, rank_mirror_set, ranked_to_mirrorlist
@@ -325,7 +327,7 @@ class DistroProgressWindow(Gtk.Window):
             speed_label.add_css_class("error")
 
         url_label = Gtk.Label(label=result.template, xalign=0, hexpand=True)
-        url_label.set_ellipsize(3)   # Pango.EllipsizeMode.END
+        url_label.set_ellipsize(Pango.EllipsizeMode.END)
 
         row_box.append(speed_label)
         row_box.append(url_label)
@@ -381,7 +383,6 @@ class DistroProgressWindow(Gtk.Window):
     def _all_done(self) -> None:
         self._status.set_text("All mirror sets ranked.")
         self._overall_bar.set_fraction(1.0)
-        self.connect("close-request", lambda _: False)
 
         save_btn = Gtk.Button(label="Save all mirrorlists")
         save_btn.add_css_class("suggested-action")
@@ -393,9 +394,9 @@ class DistroProgressWindow(Gtk.Window):
         self._btn_box.append(close_btn)
 
     def _on_save_all(self, _: Gtk.Button) -> None:
-        errors:       list[str]                  = []
-        skipped:      list[str]                  = []
-        files_to_save: list[tuple[str, object]]  = []
+        errors:        list[str]              = []
+        skipped:       list[str]              = []
+        files_to_save: list[tuple[str, Path]] = []
 
         for ms in self._sets:
             results   = self._results.get(ms.id, [])

@@ -42,7 +42,6 @@ REFLECTOR_SIMPLE_CONF = Path("/etc/reflector-simple.conf")
 class ReflectorConfig:
     """Options parsed from a reflector-format config file."""
     countries: list[str] = field(default_factory=list)
-    excluded_countries: list[str] = field(default_factory=list)
     protocols: list[str] = field(default_factory=list)
     sort: str = ""
     age: str = ""
@@ -55,8 +54,8 @@ def load_reflector_config(path: Path | None = None) -> ReflectorConfig | None:
     """
     Parse a reflector config file into a ReflectorConfig.
 
-    If path is not given, tries USER_CONF, REFLECTOR_CONF, then REFLECTOR_SIMPLE_CONF.
-    Returns None if no file is found.
+    If path is not given, tries USER_CONF, GLOBAL_CONF, REFLECTOR_SIMPLE_CONF,
+    then REFLECTOR_CONF. Returns None if no file is found.
     """
     if path is None:
         for candidate in (USER_CONF, GLOBAL_CONF, REFLECTOR_SIMPLE_CONF, REFLECTOR_CONF):
@@ -101,8 +100,6 @@ def load_reflector_config(path: Path | None = None) -> ReflectorConfig | None:
                 cfg.latest = val
             case "--country" | "-c":
                 cfg.countries.extend(v.strip() for v in val.split(","))
-            case "--country-exclude":
-                cfg.excluded_countries.extend(v.strip() for v in val.split(","))
             case "--download-timeout":
                 cfg.download_timeout = val
 
@@ -146,7 +143,7 @@ def save_global_config(opts: ReflectorOptions, path: Path = GLOBAL_CONF) -> None
 def _build_config_lines(opts: ReflectorOptions) -> list[str]:
     lines = []
     for code in opts.countries:
-        if code and code != "WW":
+        if code:
             lines.append(f"--country {code}")
     for proto in opts.protocols:
         if proto:

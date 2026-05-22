@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -77,27 +78,37 @@ def check_mirror(url: str, now: float) -> MirrorInfo | None:
 def rank_mirrors(
     mirrors: list[str],
     sort: str = "age",
+    max_workers: int = 10,
 ) -> list[MirrorInfo]:
     """
-    Check all mirrors and return a sorted list.
+    Check all mirrors concurrently and return a sorted list.
 
     Args:
-        mirrors: list of base URLs (without /$repo/os/$arch)
-        sort:    "age" or "rate"
+        mirrors:     list of base URLs (without /$repo/os/$arch)
+        sort:        "age" or "rate"
+        max_workers: number of concurrent threads
     """
     now = time.time()
     results: list[MirrorInfo] = []
+    failed:  list[str]        = []
     total = len(mirrors)
+    done  = 0
 
-    for i, url in enumerate(mirrors, start=1):
-        print(f"\r  {i}/{total} checking…", end="", flush=True, file=sys.stderr)
-        info = check_mirror(url, now)
-        if info:
-            results.append(info)
-        else:
-            print(f"\n  Warning: {url} failed", file=sys.stderr)
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        future_to_url = {pool.submit(check_mirror, url, now): url for url in mirrors}
+        for future in as_completed(future_to_url):
+            url = future_to_url[future]
+            done += 1
+            print(f"\r  {done}/{total} checking…", end="", flush=True, file=sys.stderr)
+            info = future.result()
+            if info:
+                results.append(info)
+            else:
+                failed.append(url)
 
-    print(file=sys.stderr)   # newline after the \r progress line
+    print(file=sys.stderr)
+    for url in failed:
+        print(f"  Warning: {url} failed", file=sys.stderr)
 
     if sort == "rate":
         results.sort(key=lambda m: (m.fetch_time, m.age_seconds))

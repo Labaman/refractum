@@ -9,6 +9,7 @@ Responsibilities:
 
 from __future__ import annotations
 
+import shlex
 import subprocess
 import tempfile
 from pathlib import Path
@@ -197,7 +198,8 @@ def save_mirrorlist_batch(files: list[tuple[str, Path]]) -> None:
         # One fragment per file: backup silently (may not exist on first run),
         # then install the ranked result.
         fragments = [
-            f"(cp {dest} {dest}.bak 2>/dev/null || true) && cp {tmp} {dest}"
+            f"(cp {shlex.quote(str(dest))} {shlex.quote(str(dest) + '.bak')} 2>/dev/null || true)"
+            f" && cp {shlex.quote(str(tmp))} {shlex.quote(str(dest))}"
             for tmp, dest in tmp_pairs
         ]
         script = " && ".join(fragments)

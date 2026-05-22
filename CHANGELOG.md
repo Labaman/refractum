@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.3.0] — 2026-05-22
+
+### Fixed
+- **Worldwide** selection now correctly means "no country filter" — previously
+  greyed-out but still-checked countries were silently passed to reflector
+- **Worldwide** persisted in `settings.conf` and restored on next launch
+- Country grid filled column-by-column so each column reads alphabetically
+  top-to-bottom
+- Country names with accented characters sort correctly
+  (`Réunion` before `Romania`/`Russia`, `Türkiye` in correct T-position)
+- Distro mirror speed measurement now starts after the first response chunk,
+  excluding DNS, TLS handshake, and TTFB — measures pure download throughput
+- X-button unblocked after reflector exits with an error
+- Removed debug log output left in production code
+- `assert process.stderr is not None` replaced with `RuntimeError`
+  (assertions are disabled by `python -O`)
+- Double-slash in speed-test URLs for empty `test_repo` (RebornOS, Arch4edu)
+
+### Optimised
+- Test download size 200 KB → 500 KB; chunk size 8 KB → 64 KB for more
+  stable throughput readings on fast mirrors
+- Removed dead code: `excluded_countries`, `_diff_text`, `CountryDetectionResult.name`
+- Commented-server and ISO-2 code regex patterns compiled once at module level
+- Paths in pkexec bash scripts quoted with `shlex.quote`
+- `future.result()` in ranker wrapped in `try/except`
+- `refract-rank`: mirror testing now concurrent (`ThreadPoolExecutor`)
+
 ## [1.1.1] — 2026-05-21
 
 ### Added

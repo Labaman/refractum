@@ -25,9 +25,12 @@ from .distros import MirrorSet, fetch_mirrorlist, generate_mirrorlist
 # Speed test for a single URL
 # ---------------------------------------------------------------------------
 
-# How many bytes to download per test. 200 KB is enough to get a reliable
-# bandwidth measurement without wasting too much time on slow mirrors.
-_TEST_BYTES = 200_000
+# Bytes to download per test. 500 KB gives a stable measurement for fast
+# mirrors (4+ MB/s) without wasting too much time on slow ones.
+_TEST_BYTES = 500_000
+
+# Chunk size for streaming. 64 KB reduces Python loop overhead vs 8 KB.
+_CHUNK_SIZE = 65536
 
 # Mimic pacman so mirrors that filter by User-Agent respond correctly.
 _HEADERS = {"User-Agent": "pacman/6.1.0 libalpm/14.0.0"}
@@ -45,6 +48,9 @@ def test_mirror_speed(
     """
     Download up to `max_bytes` from `url` and return bytes/second.
 
+    Timing starts after the first response chunk arrives, excluding TCP setup,
+    TLS handshake, and TTFB — measures pure download throughput.
+
     Returns None only when the mirror is genuinely unreachable or times out.
     Returns 0.0 when the mirror is up but the specific test file is missing
     (server responded 404 for primary file, but repo directory is reachable) —
@@ -56,19 +62,24 @@ def test_mirror_speed(
       3. If still 404: HEAD the repo directory — confirms server is up
     """
     try:
-        start = time.monotonic()
-        downloaded = 0
-
         with requests.get(url, timeout=timeout, stream=True,
                           headers=_HEADERS) as resp:
             if resp.status_code == 404:
                 return _check_fallback(url, timeout)
             resp.raise_for_status()
-            for chunk in resp.iter_content(chunk_size=8192):
+            # Start timing after first chunk arrives — removes TTFB and
+            # connection overhead, measures pure download throughput only.
+            start: float | None = None
+            downloaded = 0
+            for chunk in resp.iter_content(chunk_size=_CHUNK_SIZE):
+                if start is None:
+                    start = time.monotonic()
                 downloaded += len(chunk)
                 if downloaded >= max_bytes:
                     break
 
+        if start is None:
+            return None
         elapsed = time.monotonic() - start
         if elapsed > 0 and downloaded > 1024:
             return downloaded / elapsed
@@ -93,20 +104,23 @@ def _check_fallback(primary_url: str, timeout: float) -> float | None:
         if alt_url == primary_url:
             continue
         try:
-            start = time.monotonic()
-            downloaded = 0
             with requests.get(alt_url, timeout=timeout, stream=True,
                               headers=_HEADERS) as r:
                 if r.status_code == 404:
                     continue
                 r.raise_for_status()
-                for chunk in r.iter_content(chunk_size=8192):
+                start: float | None = None
+                downloaded = 0
+                for chunk in r.iter_content(chunk_size=_CHUNK_SIZE):
+                    if start is None:
+                        start = time.monotonic()
                     downloaded += len(chunk)
                     if downloaded >= _TEST_BYTES:
                         break
-            elapsed = time.monotonic() - start
-            if elapsed > 0 and downloaded > 1024:
-                return downloaded / elapsed
+            if start is not None:
+                elapsed = time.monotonic() - start
+                if elapsed > 0 and downloaded > 1024:
+                    return downloaded / elapsed
         except (requests.RequestException, OSError):
             pass
 
@@ -189,7 +203,10 @@ def rank_mirror_set(
 
         for future in as_completed(future_to_job):
             tmpl, test_url = future_to_job[future]
-            speed = future.result()   # None if the mirror failed
+            try:
+                speed = future.result()
+            except Exception:
+                speed = None
 
             r = RankResult(
                 template=tmpl,

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+import unicodedata
 from dataclasses import dataclass, field
 from typing import Generator
 
@@ -68,7 +69,17 @@ def get_countries() -> list[Country]:
     if not countries:
         raise RuntimeError("reflector returned an empty country list")
 
-    return [WORLDWIDE] + sorted(countries, key=lambda c: c.name)
+    return [WORLDWIDE] + sorted(countries, key=lambda c: _sort_key(c.name))
+
+
+def _sort_key(name: str) -> str:
+    """Sort key that ignores accents: Réunion → reunion, Türkiye → turkiye."""
+    nfd = unicodedata.normalize("NFD", name)
+    return "".join(ch for ch in nfd if not unicodedata.combining(ch)).casefold()
+
+
+_MULTI_SPACE_RE = re.compile(r'\s{2,}')
+_ISO2_RE        = re.compile(r'^[A-Z]{2}$')
 
 
 def _parse_country_list(output: str) -> list[Country]:
@@ -91,18 +102,18 @@ def _parse_country_list(output: str) -> list[Country]:
 
         # Line example: "Germany                  DE              37  2024-05-15"
         # Split on 2+ spaces so country names with spaces stay intact.
-        parts = re.split(r"\s{2,}", line.strip())
+        parts = _MULTI_SPACE_RE.split(line.strip())
         if len(parts) < 3:
             continue
 
-        name = parts[0].strip()
-        code = parts[1].strip()
+        name  = parts[0].strip()
+        code  = parts[1].strip()
         try:
             count = int(parts[2].strip())
         except ValueError:
             count = 0
 
-        if re.fullmatch(r"[A-Z]{2}", code):
+        if _ISO2_RE.match(code):
             countries.append(Country(name=name, code=code, count=count))
 
     return countries
@@ -195,7 +206,8 @@ def run_reflector(
         )
 
         # Read stderr line by line as they arrive
-        assert process.stderr is not None
+        if process.stderr is None:
+            raise RuntimeError("subprocess.Popen failed to open stderr pipe")
         for line in process.stderr:
             yield line.rstrip("\n")
 
