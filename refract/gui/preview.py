@@ -47,8 +47,8 @@ class MirrorlistPreviewWindow(Gtk.Window):
         app: Gtk.Application,
         content: str,
         dest: Path,
-        on_saved: "callable[[], None] | None" = None,
-        on_discard: "callable[[], None] | None" = None,
+        on_saved: callable[[], None] | None = None,
+        on_discard: callable[[], None] | None = None,
     ) -> None:
         super().__init__(application=app, title="New mirrorlist — confirm save")
         self.set_default_size(860, 600)

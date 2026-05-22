@@ -46,7 +46,7 @@ class DistroProgressWindow(Gtk.Window):
         protocols: list[str] | None = None,
         max_results: int | None = None,
         country_names: set[str] | None = None,
-        on_done: "callable[[], None] | None" = None,
+        on_done: callable[[], None] | None = None,
     ) -> None:
         super().__init__(application=app, title="Ranking distro mirrors…")
         self.set_default_size(950, 600)

@@ -34,7 +34,7 @@ class ProgressWindow(Gtk.Window):
         app: Gtk.Application,
         options: ReflectorOptions,
         expected_count: int = 10,
-        on_done: "callable[[str | None], None] | None" = None,
+        on_done: callable[[str | None], None] | None = None,
     ) -> None:
         super().__init__(application=app, title="Ranking mirrors…")
         self.set_default_size(900, 500)

@@ -51,7 +51,7 @@ class MainWindow(Gtk.ApplicationWindow):
         columns: int = 5,
         width: int = 1000,
         height: int = 750,
-        on_result: "callable[[SelectionResult], None] | None" = None,
+        on_result: callable[[SelectionResult], None] | None = None,
     ) -> None:
         super().__init__(application=app, title="refract — Select Arch mirrors")
         self.set_default_size(width, height)

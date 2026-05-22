@@ -13,7 +13,7 @@ import re
 import subprocess
 import unicodedata
 from dataclasses import dataclass, field
-from typing import Generator
+from collections.abc import Generator
 
 
 # ---------------------------------------------------------------------------
