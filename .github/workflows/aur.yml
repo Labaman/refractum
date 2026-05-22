@@ -20,8 +20,8 @@ jobs:
           pkgname: refract
           pkgbuild: ./PKGBUILD
           pkgver: ${{ steps.version.outputs.version }}
-          commit_username: Mikhail
-          commit_email: efklid@gmail.com
+          commit_username: ${{ vars.AUR_USERNAME }}
+          commit_email: ${{ vars.AUR_EMAIL }}
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
           commit_message: "Release v${{ steps.version.outputs.version }}"
           updpkgsums: true
