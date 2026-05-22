@@ -273,7 +273,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
         # Pre-select the set that matches the running distro (if any).
         # Plain Arch uses reflector (Arch tab), so no distro set is pre-selected.
-        _DISTRO_TO_SET_ID = {
+        _distro_to_set_id = {
             "cachyos":      "cachyos",
             "endeavouros":  "endeavouros",
             "artix":        "artix",
@@ -281,7 +281,7 @@ class MainWindow(Gtk.ApplicationWindow):
             "rebornos":     "rebornos",
             "arcolinux":    "arcolinux",
         }
-        auto_id = _DISTRO_TO_SET_ID.get(detect_distro_id(), "")
+        auto_id = _distro_to_set_id.get(detect_distro_id(), "")
 
         list_box = Gtk.ListBox()
         list_box.set_selection_mode(Gtk.SelectionMode.NONE)

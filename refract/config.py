@@ -129,7 +129,7 @@ def save_global_config(opts: ReflectorOptions, path: Path = GLOBAL_CONF) -> None
         result = subprocess.run(
             ["pkexec", "bash", "-c",
              f"cp {shlex.quote(str(tmp_path))} {shlex.quote(str(path))}"],
-            timeout=60,
+            timeout=60, check=False,
         )
         if result.returncode == 126:
             raise PermissionError("User cancelled the pkexec authorisation dialog")

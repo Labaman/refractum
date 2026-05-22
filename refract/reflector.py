@@ -55,12 +55,12 @@ def get_countries() -> list[Country]:
     try:
         result = subprocess.run(
             ["reflector", "--list-countries"],
-            capture_output=True, text=True, timeout=30
+            capture_output=True, text=True, timeout=30, check=False,
         )
-    except FileNotFoundError:
-        raise RuntimeError("reflector is not installed or not in PATH")
-    except subprocess.TimeoutExpired:
-        raise RuntimeError("reflector --list-countries timed out")
+    except FileNotFoundError as exc:
+        raise RuntimeError("reflector is not installed or not in PATH") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError("reflector --list-countries timed out") from exc
 
     if result.returncode != 0:
         raise RuntimeError(f"reflector exited with code {result.returncode}")
@@ -197,7 +197,7 @@ def run_reflector(
 
     Returns (via StopIteration.value) the process exit code.
     """
-    with open(output_file, "w") as out_fh:
+    with open(output_file, "w", encoding="utf-8") as out_fh:
         process = subprocess.Popen(
             cmd,
             stdout=out_fh,      # mirrorlist goes directly to the file

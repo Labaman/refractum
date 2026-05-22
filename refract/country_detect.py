@@ -72,7 +72,7 @@ def _detect_via_geoiplookup() -> str | None:
     try:
         result = subprocess.run(
             ["geoiplookup", ip],
-            capture_output=True, text=True, timeout=10
+            capture_output=True, text=True, timeout=10, check=False,
         )
         match = re.search(r":\s+([A-Z]{2}),", result.stdout)
         if match:
@@ -92,7 +92,7 @@ def _get_public_ipv4() -> str | None:
     try:
         result = subprocess.run(
             ["dig", "-4", "TXT", "+short", "o-o.myaddr.l.google.com", "@ns1.google.com"],
-            capture_output=True, text=True, timeout=10
+            capture_output=True, text=True, timeout=10, check=False,
         )
         ip = result.stdout.strip().strip('"')
         if re.fullmatch(r"\d{1,3}(\.\d{1,3}){3}", ip):

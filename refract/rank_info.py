@@ -41,7 +41,7 @@ def read_mirrors(path: Path = MIRRORLIST_PATH) -> list[str]:
     append `/lastupdate` to check mirror freshness.
     """
     servers = []
-    for line in path.read_text().splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         if line.startswith("Server = "):
             url = line[len("Server = "):].strip()
             base = url.replace("/$repo/os/$arch", "").rstrip("/")

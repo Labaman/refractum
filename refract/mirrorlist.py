@@ -206,7 +206,7 @@ def save_mirrorlist_batch(files: list[tuple[str, Path]]) -> None:
 
         result = subprocess.run(
             ["pkexec", "bash", "-c", script],
-            timeout=60,
+            timeout=60, check=False,
         )
         if result.returncode == 126:
             raise PermissionError("User cancelled the pkexec authorisation dialog")

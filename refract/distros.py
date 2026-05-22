@@ -13,7 +13,7 @@ Arch Linux itself is handled by reflector (separate tab), not listed here.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import requests
@@ -356,7 +356,7 @@ def detect_distro_id() -> str:
     Returns "" if the file is missing or the field is absent.
     """
     try:
-        for line in Path("/etc/os-release").read_text().splitlines():
+        for line in Path("/etc/os-release").read_text(encoding="utf-8").splitlines():
             if line.startswith("ID="):
                 return line[3:].strip().strip('"').lower()
     except OSError:

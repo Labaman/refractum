@@ -176,7 +176,7 @@ def _on_ranking_done(app, tmp_path, result, countries) -> None:
         return
 
     try:
-        ranked_content = Path(tmp_path).read_text()
+        ranked_content = Path(tmp_path).read_text(encoding="utf-8")
     except OSError as exc:
         _show_error(app, f"Cannot read ranked mirrorlist:\n{exc}")
         return
