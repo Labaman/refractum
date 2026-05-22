@@ -5,6 +5,7 @@ from __future__ import annotations
 import locale
 import re
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import Callable
 
@@ -113,27 +114,20 @@ _METHODS: list[tuple[str, Callable[[], str | None]]] = [
 ]
 
 
-def detect_country(preferred: str = "ipinfo") -> CountryDetectionResult | None:
+def detect_country() -> CountryDetectionResult | None:
     """
-    Try each detection method in order until one succeeds.
-
-    Args:
-        preferred: name of the method to try first (default: "ipinfo").
-                   Pass "default" or any unknown name to go straight to
-                   the built-in priority order.
+    Run all detection methods concurrently and return the first success.
 
     Returns:
         CountryDetectionResult on success, None if all methods fail.
     """
-    # Build an ordered list: preferred method first, then the rest.
-    ordered = sorted(
-        _METHODS,
-        key=lambda pair: (0 if pair[0] == preferred else 1)
-    )
-
-    for method_name, method_fn in ordered:
-        code = method_fn()
-        if code:
-            return CountryDetectionResult(code=code, method=method_name)
+    with ThreadPoolExecutor(max_workers=len(_METHODS)) as pool:
+        future_to_name = {pool.submit(fn): name for name, fn in _METHODS}
+        for future in as_completed(future_to_name):
+            code = future.result()
+            if code:
+                for f in future_to_name:
+                    f.cancel()
+                return CountryDetectionResult(code=code, method=future_to_name[future])
 
     return None

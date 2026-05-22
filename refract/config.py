@@ -112,7 +112,7 @@ def load_reflector_config(path: Path | None = None) -> ReflectorConfig | None:
 def save_user_config(opts: ReflectorOptions, path: Path = USER_CONF) -> None:
     """Save options to the personal config file (no root needed)."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("\n".join(_build_config_lines(opts)) + "\n")
+    path.write_text("\n".join(_build_config_lines(opts)) + "\n", encoding="utf-8")
 
 
 def save_global_config(opts: ReflectorOptions, path: Path = GLOBAL_CONF) -> None:

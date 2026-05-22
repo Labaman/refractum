@@ -510,9 +510,9 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _load_free_params(self) -> str:
         if self.FREE_PARAMS_FILE.exists():
-            return self.FREE_PARAMS_FILE.read_text().strip()
+            return self.FREE_PARAMS_FILE.read_text(encoding="utf-8").strip()
         return ""
 
     def _save_free_params(self, params: str) -> None:
         self.FREE_PARAMS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        self.FREE_PARAMS_FILE.write_text(params)
+        self.FREE_PARAMS_FILE.write_text(params, encoding="utf-8")
