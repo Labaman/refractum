@@ -130,13 +130,14 @@ def detect_country() -> CountryDetectionResult | None:
     Returns:
         CountryDetectionResult on success, None if all methods fail.
     """
-    with ThreadPoolExecutor(max_workers=len(_METHODS)) as pool:
-        future_to_name = {pool.submit(fn): name for name, fn in _METHODS}
+    pool = ThreadPoolExecutor(max_workers=len(_METHODS))
+    future_to_name = {pool.submit(fn): name for name, fn in _METHODS}
+    try:
         for future in as_completed(future_to_name):
             code = future.result()
             if code:
-                for f in future_to_name:
-                    f.cancel()
                 return CountryDetectionResult(code=code, method=future_to_name[future])
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
 
     return None

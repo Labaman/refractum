@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import threading
 import traceback
+from collections.abc import Callable
 from pathlib import Path
 
 import gi
@@ -47,7 +48,7 @@ class DistroProgressWindow(Gtk.Window):
         protocols: list[str] | None = None,
         max_results: int | None = None,
         country_names: set[str] | None = None,
-        on_done: callable[[], None] | None = None,
+        on_done: Callable[[], None] | None = None,
     ) -> None:
         super().__init__(application=app, title="Ranking distro mirrors…")
         self.set_default_size(950, 600)
@@ -307,6 +308,7 @@ class DistroProgressWindow(Gtk.Window):
         if lb:
             self._append_result_row(lb, result)
 
+        self._update_overall_progress()
         return False
 
     def _append_result_row(self, lb: Gtk.ListBox, result: RankResult) -> None:

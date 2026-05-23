@@ -14,6 +14,7 @@ import math
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk  # noqa: E402
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -43,7 +44,7 @@ class SelectionResult:
 
 
 class MainWindow(Gtk.ApplicationWindow):
-    FREE_PARAMS_FILE = Path.home() / ".config" / "refract-free-params.txt"
+    FREE_PARAMS_FILE = Path.home() / ".config" / "refract" / "free-params.txt"
 
     def __init__(
         self,
@@ -54,7 +55,7 @@ class MainWindow(Gtk.ApplicationWindow):
         columns: int = 5,
         width: int = 1000,
         height: int = 750,
-        on_result: callable[[SelectionResult], None] | None = None,
+        on_result: Callable[[SelectionResult], None] | None = None,
     ) -> None:
         super().__init__(application=app, title="refract — Select Arch mirrors")
         self.set_default_size(width, height)
@@ -175,7 +176,7 @@ class MainWindow(Gtk.ApplicationWindow):
         grid.attach(Gtk.Label(label="Protocols:", xalign=0), 0, row, 1, 1)
         proto_box = Gtk.Box(spacing=8)
         self._https_cb = Gtk.CheckButton(label="https")
-        self._https_cb.set_active(True)
+        self._https_cb.set_active("https" in self._defaults.protocols if self._defaults.protocols else True)
         self._http_cb = Gtk.CheckButton(label="http")
         self._http_cb.set_active("http" in self._defaults.protocols)
         self._rsync_cb = Gtk.CheckButton(label="rsync")

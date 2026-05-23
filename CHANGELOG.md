@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.4.2] — 2026-05-23
+
+### Fixed
+- Overall progress bar in distro ranking now updates in real time
+- `https` protocol checkbox now correctly restores saved state
+- `community.db` removed from fallback list (merged into `extra` in Arch 2023)
+- Config and free-params files now stored consistently under `~/.config/refract/`
+- `Callable` type annotations corrected in GUI modules
+- `read_mirrors()` now handles `OSError` explicitly
+- Mirror with response file < 1 KB now correctly marked as reachable
+
+### Optimised
+- Country detection no longer blocks app startup waiting for slow detection methods
+
 ## [1.4.1] — 2026-05-23
 
 ### Fixed

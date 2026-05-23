@@ -37,7 +37,7 @@ _HEADERS = {"User-Agent": "pacman/6.1.0 libalpm/14.0.0"}
 
 # Alternative database filenames to try when the primary test file returns 404.
 # Pacman repos always ship at least one of these.
-_FALLBACK_DB_NAMES = ("extra.db", "core.db", "community.db")
+_FALLBACK_DB_NAMES = ("extra.db", "core.db")
 
 
 def test_mirror_speed(
@@ -82,6 +82,7 @@ def test_mirror_speed(
         elapsed = time.monotonic() - start
         if elapsed > 0 and downloaded > 1024:
             return downloaded / elapsed
+        return 0.0  # server responded but file too small to measure reliably
 
     except (requests.RequestException, OSError):
         pass

@@ -16,6 +16,8 @@ import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, GLib  # noqa: E402
 
+from collections.abc import Callable
+
 from ..reflector import ReflectorOptions, build_command, run_reflector
 
 
@@ -35,7 +37,7 @@ class ProgressWindow(Gtk.Window):
         app: Gtk.Application,
         options: ReflectorOptions,
         expected_count: int = 10,
-        on_done: callable[[str | None], None] | None = None,
+        on_done: Callable[[str | None], None] | None = None,
     ) -> None:
         super().__init__(application=app, title="Ranking mirrors…")
         self.set_default_size(900, 500)

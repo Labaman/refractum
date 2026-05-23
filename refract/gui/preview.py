@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import difflib
 import re
+from collections.abc import Callable
 from pathlib import Path
 
 import gi
@@ -48,8 +49,8 @@ class MirrorlistPreviewWindow(Gtk.Window):
         app: Gtk.Application,
         content: str,
         dest: Path,
-        on_saved: callable[[], None] | None = None,
-        on_discard: callable[[], None] | None = None,
+        on_saved: Callable[[], None] | None = None,
+        on_discard: Callable[[], None] | None = None,
     ) -> None:
         super().__init__(application=app, title="New mirrorlist — confirm save")
         self.set_default_size(860, 600)
