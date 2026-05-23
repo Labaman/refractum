@@ -8,7 +8,7 @@
 - Unused parameters removed from `_on_ranking_done`
 
 ### Changed
-- `collections.abc` imports modernised; `urllib.parse.unquote` applied where appropriate
+- `collections.abc` imports modernized; `urllib.parse.unquote` applied where appropriate
 - Code formatted with ruff
 
 ## [1.4.0] — 2026-05-22
