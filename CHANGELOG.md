@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.4.1] — 2026-05-23
+
+### Fixed
+- Mirror results in distro ranking display in real time again
+- Encoding parameters corrected for subprocess calls; temp files cleaned up reliably
+- Unused parameters removed from `_on_ranking_done`
+
+### Changed
+- `collections.abc` imports modernised; `urllib.parse.unquote` applied where appropriate
+- Code formatted with ruff
+
 ## [1.4.0] — 2026-05-22
 
 ### Added
