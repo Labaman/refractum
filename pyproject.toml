@@ -6,6 +6,7 @@ build-backend = "hatchling.build"
 name = "refract"
 version = "1.4.1"
 description = "Simple GUI for ranking Arch Linux and distro-specific pacman mirrors"
+license = { text = "GPL-3.0-or-later" }
 requires-python = ">=3.11"
 dependencies = [
     "requests",

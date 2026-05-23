@@ -6,7 +6,7 @@ pkgrel=1
 pkgdesc="GUI tool for ranking pacman mirrors on Arch Linux and Arch-based distributions"
 arch=('any')
 url="https://github.com/Labaman/refract"
-license=('MIT')
+license=('GPL-3.0-or-later')
 depends=(
     'python'
     'python-requests'
@@ -31,6 +31,7 @@ build() {
 package() {
     cd "$pkgname-$pkgver" || return 1
     python -m installer --destdir="$pkgdir" dist/*.whl
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
     install -Dm644 refract.desktop "$pkgdir/usr/share/applications/refract.desktop"
     install -Dm644 refract.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/refract.svg"
 }
