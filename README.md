@@ -120,3 +120,7 @@ Refract was inspired by two existing tools:
 
 - **[reflector-simple](https://github.com/endeavouros-team/PKGBUILDS/tree/master/reflector-simple)** — shell-based GUI wrapper for reflector, part of the EndeavourOS project
 - **[rate-mirrors](https://github.com/westandskif/rate-mirrors)** — fast, map-aware mirror ranking tool that inspired the distro mirror speed-testing approach
+
+## License
+
+This project is licensed under [GPL-3.0-or-later](LICENSE). This license applies retroactively to all previous releases (v0.8.3 and later).
