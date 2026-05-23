@@ -25,7 +25,7 @@ jobs:
 
       - name: Upload to release
         run: |
-          git config --global --add safe.directory "$(pwd)"
+          git config --global --add safe.directory '*'
           gh release upload ${{ github.ref_name }} *.pkg.tar.zst
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
