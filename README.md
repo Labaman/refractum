@@ -26,7 +26,6 @@ GUI tool for ranking pacman mirrors on Arch Linux and Arch-based distributions.
 | Artix Linux | `/etc/pacman.d/artix-mirrorlist` |
 | BlackArch Linux | `/etc/pacman.d/blackarch-mirrorlist` |
 | RebornOS | `/etc/pacman.d/reborn-mirrorlist` |
-| ArcoLinux | `/etc/pacman.d/arcolinux-mirrorlist` |
 
 ### Third-party repositories
 
