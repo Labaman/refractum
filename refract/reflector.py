@@ -140,7 +140,7 @@ class ReflectorOptions:
     number: int = 10
     use_latest: bool = False  # True = --latest N (N most recent), False = --age N (freshness window)
     age: int | None = None  # --age N (hours), None = omit
-    download_timeout: int = 5
+    download_timeout: int = 10
     threads: int | None = None
     extra_args: list[str] = field(default_factory=list)
 
@@ -152,7 +152,7 @@ def build_command(opts: ReflectorOptions) -> list[str]:
     Example result:
         ["reflector", "--verbose", "-c", "DE", "-c", "FR",
          "--protocol", "https", "--sort", "rate", "--latest", "10",
-         "--download-timeout", "5"]
+         "--download-timeout", "10"]
     """
     cmd = ["reflector", "--verbose"]
 

@@ -232,7 +232,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
         # Timeout
         grid.attach(Gtk.Label(label="Download timeout (s):", xalign=0), 0, row, 1, 1)
-        adj2 = Gtk.Adjustment(value=self._defaults.download_timeout or 5, lower=1, upper=120, step_increment=1)
+        adj2 = Gtk.Adjustment(value=self._defaults.download_timeout or 10, lower=1, upper=120, step_increment=1)
         self._timeout_spin = Gtk.SpinButton(adjustment=adj2, climb_rate=1, digits=0)
         self._timeout_spin.set_width_chars(6)
         grid.attach(self._timeout_spin, 1, row, 1, 1)
@@ -295,7 +295,6 @@ class MainWindow(Gtk.ApplicationWindow):
             "artix": "artix",
             "blackarch": "blackarch",
             "rebornos": "rebornos",
-            "arcolinux": "arcolinux",
         }
         auto_id = _distro_to_set_id.get(detect_distro_id(), "")
 

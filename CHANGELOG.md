@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.4.3] — 2026-05-25
+
+### Fixed
+- Fixed country filter for CachyOS mirrors: `code=XX`-style section headers were
+  not matched because ISO country codes were not passed to the section matcher
+  in the updated code path, causing all mirrors to be returned regardless of
+  country selection
+- Fixed incorrect fallback behaviour in distro mirror filtering: an empty filtered
+  result (sections present, selected country not found) was treated as "no sections"
+  and fell back to all mirrors; a redundant worker-level fallback that bypassed
+  the country filter entirely was also removed
+- Repos without country-based mirrorlist sections (Arch Linux CN, RebornOS, Arch4edu)
+  now correctly return all mirrors instead of an empty list when a country is selected
+- Artix Linux mirrorlist source URL updated — previous GitHub URL was returning 404
+- `Gtk.AlertDialog` async result now properly finalised in save dialogs — was
+  producing GTK warnings in the log
+- Country-sorted mirrorlist output no longer contains spurious `0.00 MB/s` annotations
+
+### Changed
+- Default download timeout raised from 5 s to 10 s — reduces false "unreachable"
+  results for slow-responding mirrors
+- Removed dead `CountryDetectionResult.method` field
+- ArcoLinux dropped — project has been officially discontinued
+
 ## [1.4.2] — 2026-05-23
 
 ### Fixed

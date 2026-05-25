@@ -154,6 +154,10 @@ def _handle_main_result(app, result, countries) -> None:
             protocols=result.options.protocols or ["https"],
             max_results=result.options.number,
             country_names=country_names,
+            country_codes=selected_codes if selected_codes else None,
+            # Inherits the same sort method from the Arch tab.
+            # "country" takes the fast path (no speed test, alphabetical by country).
+            sort_by=result.options.sort,
             on_done=lambda: _start_arch_ranking(app, result),
         )
         distro_win.present()

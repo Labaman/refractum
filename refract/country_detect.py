@@ -22,7 +22,6 @@ class CountryDetectionResult:
     """Holds the outcome of a country detection attempt."""
 
     code: str  # two-letter ISO code, e.g. "DE"
-    method: str  # which method found it, for logging
 
 
 # ---------------------------------------------------------------------------
@@ -131,12 +130,12 @@ def detect_country() -> CountryDetectionResult | None:
         CountryDetectionResult on success, None if all methods fail.
     """
     pool = ThreadPoolExecutor(max_workers=len(_METHODS))
-    future_to_name = {pool.submit(fn): name for name, fn in _METHODS}
+    futures = [pool.submit(fn) for _, fn in _METHODS]
     try:
-        for future in as_completed(future_to_name):
+        for future in as_completed(futures):
             code = future.result()
             if code:
-                return CountryDetectionResult(code=code, method=future_to_name[future])
+                return CountryDetectionResult(code=code)
     finally:
         pool.shutdown(wait=False, cancel_futures=True)
 

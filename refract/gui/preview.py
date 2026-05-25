@@ -337,7 +337,15 @@ class MirrorlistPreviewWindow(Gtk.Window):
         dialog.set_message("Saved")
         dialog.set_detail(f"Mirrorlist saved to {self._dest}\nBackup: {self._dest}.bak")
         dialog.set_buttons(["OK"])
-        dialog.choose(self, None, lambda *_: self._finish_saved())
+
+        def _on_response(src, result):
+            try:
+                dialog.choose_finish(result)
+            except Exception:
+                pass
+            self._finish_saved()
+
+        dialog.choose(self, None, _on_response)
 
     def _on_discard_clicked(self, _: Gtk.Button) -> None:
         self.close()

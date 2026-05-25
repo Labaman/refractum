@@ -147,6 +147,7 @@ class RankResult:
     test_url: str  # the actual URL that was fetched
     speed: float  # bytes/second, 0.0 if unreachable
     reachable: bool
+    country: str = ""  # ISO-2 code or header text; populated by DistroProgressWindow
 
 
 def rank_mirror_set(

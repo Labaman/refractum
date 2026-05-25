@@ -129,7 +129,6 @@ class ProgressWindow(Gtk.Window):
             try:
                 while True:
                     line = next(gen)
-                    # Post UI update to main thread
                     GLib.idle_add(self._append_log, line)
                     if "rating" in line.lower() or "sorting" in line.lower():
                         GLib.idle_add(self._advance_progress, line)

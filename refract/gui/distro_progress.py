@@ -48,6 +48,8 @@ class DistroProgressWindow(Gtk.Window):
         protocols: list[str] | None = None,
         max_results: int | None = None,
         country_names: set[str] | None = None,
+        country_codes: set[str] | None = None,
+        sort_by: str = "rate",
         on_done: Callable[[], None] | None = None,
     ) -> None:
         super().__init__(application=app, title="Ranking distro mirrors…")
@@ -59,6 +61,8 @@ class DistroProgressWindow(Gtk.Window):
         self._protocols = protocols
         self._max_results = max_results
         self._country_names = country_names
+        self._country_codes = country_codes
+        self._sort_by = sort_by
         self._on_done = on_done
 
         self._results: dict[str, list[RankResult]] = {ms.id: [] for ms in mirror_sets}
@@ -170,12 +174,41 @@ class DistroProgressWindow(Gtk.Window):
     # ------------------------------------------------------------------
 
     def _worker(self, ms: MirrorSet) -> None:
-        from ..distros import fetch_mirrorlist
+        from ..distros import fetch_mirrorlist_with_countries
 
         try:
             GLib.idle_add(self._set_pb_text, ms.id, "Fetching mirror list…")
-            templates = fetch_mirrorlist(ms, country_names=self._country_names)
 
+            # Single HTTP call: returns filtered templates + {template: country} map.
+            # Both are used below — the map for country labels, the templates for testing.
+            templates, country_map = fetch_mirrorlist_with_countries(
+                ms, country_names=self._country_names, country_codes=self._country_codes
+            )
+
+            if self._sort_by == "country":
+                # Fast path: no speed test — sort alphabetically by country code/name.
+                # Protocol filter applied manually (rank_mirror_set is skipped entirely).
+                if self._protocols:
+                    templates = [t for t in templates if any(t.startswith(p + "://") for p in self._protocols)]
+                # "\xff" pushes mirrors with no country info to the end of the list.
+                templates.sort(key=lambda t: (country_map.get(t, "\xff"), t))
+                if self._max_results:
+                    templates = templates[: self._max_results]
+                results = [
+                    RankResult(
+                        template=t,
+                        test_url=ms.make_test_url(t),
+                        speed=0.0,
+                        reachable=True,
+                        country=country_map.get(t, ""),
+                    )
+                    for t in templates
+                ]
+                self._total_mirrors[ms.id] = len(results)
+                GLib.idle_add(self._on_set_done, ms.id, results)
+                return
+
+            # Normal speed-test path
             if not templates:
                 GLib.idle_add(self._set_pb_text, ms.id, "No mirrors found.")
                 GLib.idle_add(self._on_set_done, ms.id, [])
@@ -197,33 +230,9 @@ class DistroProgressWindow(Gtk.Window):
                 on_progress=progress_cb,
             )
 
-            # If country filter gave 0 reachable, fall back to all mirrors
-            reachable = sum(1 for r in results if r.reachable)
-            if reachable == 0 and self._country_names:
-                GLib.idle_add(
-                    self._set_pb_text,
-                    ms.id,
-                    "No reachable country mirrors — trying all…",
-                )
-                all_templates = fetch_mirrorlist(ms)
-                tested = {r.template for r in results}
-                extra = [t for t in all_templates if t not in tested]
-                if extra:
-                    self._total_mirrors[ms.id] += len(extra)
-                    extra_results = rank_mirror_set(
-                        ms,
-                        templates=extra,
-                        max_workers=self._max_workers,
-                        timeout=self._timeout,
-                        protocols=self._protocols,
-                        on_progress=progress_cb,
-                    )
-                    results = results + extra_results
-                    results.sort(key=lambda r: (not r.reachable, -r.speed))
-                    if self._max_results:
-                        ok = [r for r in results if r.reachable]
-                        bad = [r for r in results if not r.reachable]
-                        results = ok[: self._max_results] + bad
+            # rank_mirror_set has no country awareness; populate from country_map here.
+            for r in results:
+                r.country = country_map.get(r.template, "")
 
             GLib.idle_add(self._on_set_done, ms.id, results)
 
@@ -254,7 +263,7 @@ class DistroProgressWindow(Gtk.Window):
             GLib.idle_add(self._set_pb_text, derived_ms.id, f"Deriving from {primary_ms.display_name}…")
 
             # Fetch derived set's upstream list to know which mirrors support this arch
-            derived_all = fetch_mirrorlist(derived_ms, country_names=self._country_names)
+            derived_all = fetch_mirrorlist(derived_ms, country_names=self._country_names, country_codes=self._country_codes)
             derived_set = set(derived_all)
 
             derived_results: list[RankResult] = []
@@ -324,16 +333,23 @@ class DistroProgressWindow(Gtk.Window):
             speed_label = Gtk.Label(label=f"{speed_mb:6.2f} MB/s", xalign=1, width_chars=12)
             speed_label.add_css_class("success" if speed_mb > 1.0 else "warning")
         elif result.reachable:
-            speed_label = Gtk.Label(label="up (no data)", xalign=1, width_chars=12)
-            speed_label.add_css_class("warning")
+            # sort_by=country: speed=0 means "not tested", not "slow"
+            speed_label = Gtk.Label(label="—" if self._sort_by == "country" else "up (no data)", xalign=1, width_chars=12)
+            speed_label.add_css_class("dim-label" if self._sort_by == "country" else "warning")
         else:
             speed_label = Gtk.Label(label="unreachable", xalign=1, width_chars=12)
             speed_label.add_css_class("error")
+
+        # Country label — hidden when unknown
+        country_label = Gtk.Label(label=result.country, xalign=0, width_chars=4)
+        country_label.add_css_class("dim-label")
+        country_label.set_visible(bool(result.country))
 
         url_label = Gtk.Label(label=result.template, xalign=0, hexpand=True)
         url_label.set_ellipsize(Pango.EllipsizeMode.END)
 
         row_box.append(speed_label)
+        row_box.append(country_label)
         row_box.append(url_label)
         row.set_child(row_box)
         lb.append(row)
@@ -430,10 +446,18 @@ class DistroProgressWindow(Gtk.Window):
         if parts:
             dialog.set_message("Issues while saving")
             dialog.set_detail("\n\n".join(parts))
-            dialog.choose(self, None, lambda *_: None)  # just dismiss
+            dialog.show(self)
         else:
             dialog.set_message("All mirrorlists saved.")
-            dialog.choose(self, None, lambda *_: self._finish())
+
+            def _on_response(src, result):
+                try:
+                    dialog.choose_finish(result)
+                except Exception:
+                    pass
+                self._finish()
+
+            dialog.choose(self, None, _on_response)
 
     def _finish(self) -> None:
         if self._on_done:
