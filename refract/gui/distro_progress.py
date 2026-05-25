@@ -263,7 +263,9 @@ class DistroProgressWindow(Gtk.Window):
             GLib.idle_add(self._set_pb_text, derived_ms.id, f"Deriving from {primary_ms.display_name}…")
 
             # Fetch derived set's upstream list to know which mirrors support this arch
-            derived_all = fetch_mirrorlist(derived_ms, country_names=self._country_names, country_codes=self._country_codes)
+            derived_all = fetch_mirrorlist(
+                derived_ms, country_names=self._country_names, country_codes=self._country_codes
+            )
             derived_set = set(derived_all)
 
             derived_results: list[RankResult] = []
@@ -334,8 +336,9 @@ class DistroProgressWindow(Gtk.Window):
             speed_label.add_css_class("success" if speed_mb > 1.0 else "warning")
         elif result.reachable:
             # sort_by=country: speed=0 means "not tested", not "slow"
-            speed_label = Gtk.Label(label="—" if self._sort_by == "country" else "up (no data)", xalign=1, width_chars=12)
-            speed_label.add_css_class("dim-label" if self._sort_by == "country" else "warning")
+            is_country = self._sort_by == "country"
+            speed_label = Gtk.Label(label="—" if is_country else "up (no data)", xalign=1, width_chars=12)
+            speed_label.add_css_class("dim-label" if is_country else "warning")
         else:
             speed_label = Gtk.Label(label="unreachable", xalign=1, width_chars=12)
             speed_label.add_css_class("error")
