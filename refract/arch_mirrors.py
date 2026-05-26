@@ -27,14 +27,14 @@ _CACHE_TTL = 300  # seconds
 class ArchMirror:
     """One entry from the Arch Linux mirror status JSON."""
 
-    url: str            # base URL, e.g. "https://mirror.de/archlinux/"
-    country: str        # "Germany"
-    country_code: str   # "DE"
-    protocol: str       # "https" | "http" | "rsync" | "ftp"
-    last_sync: float    # Unix timestamp; 0 if never synced
+    url: str  # base URL, e.g. "https://mirror.de/archlinux/"
+    country: str  # "Germany"
+    country_code: str  # "DE"
+    protocol: str  # "https" | "http" | "rsync" | "ftp"
+    last_sync: float  # Unix timestamp; 0 if never synced
     completion_pct: float
     score: float | None
-    delay: int | None   # seconds
+    delay: int | None  # seconds
 
     @property
     def server_template(self) -> str:

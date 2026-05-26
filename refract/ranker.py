@@ -108,7 +108,8 @@ def test_rsync_speed(url: str, timeout: float = 10.0) -> float | None:
             result = subprocess.run(
                 [
                     "rsync",
-                    "-aL", "--no-motd",
+                    "-aL",
+                    "--no-motd",
                     f"--contimeout={connection_timeout}",
                     url,
                     tmpdir,

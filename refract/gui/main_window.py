@@ -503,4 +503,3 @@ class MainWindow(Gtk.ApplicationWindow):
         dialog.set_message(message)
         dialog.set_buttons(["OK"])
         dialog.show(self)
-
