@@ -13,7 +13,6 @@
     "pkexec", "polkit", "pacman", "makepkg", "mirrorlist", "mirrorlists", "reflector",
     "PyGObject", "gobject", "PKGBUILD", "SRCINFO", "hatchling",
     "shlex",
-    "Optimised",
     "Réunion", "Türkiye",
     "TTFB", "AUR"
   ]
