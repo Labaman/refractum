@@ -1,5 +1,43 @@
 # Changelog
 
+## [1.5.0] — 2026-05-26
+
+### Added
+- Native Arch mirror ranking — reflector is no longer a runtime dependency;
+  mirrors are fetched directly from `archlinux.org/mirrors/status/json/` and
+  tested concurrently using a thread pool
+- Speed tests use `User-Agent: pacman/6.1.0` so mirrors that filter by
+  User-Agent respond correctly; measurements reflect actual pacman download
+  conditions rather than generic HTTP client behavior
+- rsync mirrors are now speed-tested via a `rsync` subprocess, matching
+  reflector's own approach
+- Mirror status JSON is cached locally for 5 minutes to reduce startup time
+  on repeated launches
+- Metadata-only sort modes (`score`, `age`, `delay`, `country`) resolve
+  instantly from cached JSON — no download tests required
+
+### Changed
+- User config migrated from reflector CLI flag format (`settings.conf`) to
+  TOML (`settings.toml`); legacy `/etc/reflector.conf` and
+  `/etc/reflector-simple.conf` are still read for first-launch bootstrap
+- `reflector.py` renamed to `models.py` — now contains only shared data
+  models (`Country`, `ReflectorOptions`)
+- "Reflector options" panel renamed to "Mirror options"
+
+### Fixed
+- Detected local country was permanently injected into the country selection
+  on every launch, overriding the user's saved choices
+- `_detect_via_locale` regex never matched — `locale.getlocale()` returns the
+  locale string without an encoding suffix, so the dot anchor was always wrong
+- Section header parser now requires `##` — single-`#` lines such as speed
+  annotations (`# 5.23 MB/s`) were incorrectly treated as section headers,
+  breaking country filtering when falling back to a locally installed mirrorlist
+- Arch mirrorlist output no longer includes unreachable mirrors
+
+### Removed
+- reflector CLI dependency — refract no longer calls reflector at runtime
+- "Extra reflector args" free-form field removed from GUI
+
 ## [1.4.3] — 2026-05-25
 
 ### Fixed
@@ -35,7 +73,7 @@
 - `read_mirrors()` now handles `OSError` explicitly
 - Mirror with response file < 1 KB now correctly marked as reachable
 
-### Optimised
+### Optimized
 - Country detection no longer blocks app startup waiting for slow detection methods
 
 ## [1.4.1] — 2026-05-23
@@ -61,7 +99,7 @@
 
 ### Fixed
 - **Worldwide** selection now correctly means "no country filter" — previously
-  greyed-out but still-checked countries were silently passed to reflector
+  grayed-out but still-checked countries were silently passed to reflector
 - **Worldwide** persisted in `settings.conf` and restored on next launch
 - Country grid filled column-by-column so each column reads alphabetically
   top-to-bottom
@@ -75,7 +113,7 @@
   (assertions are disabled by `python -O`)
 - Double-slash in speed-test URLs for empty `test_repo` (RebornOS, Arch4edu)
 
-### Optimised
+### Optimized
 - Test download size 200 KB → 500 KB; chunk size 8 KB → 64 KB for more
   stable throughput readings on fast mirrors
 - Removed dead code: `excluded_countries`, `_diff_text`, `CountryDetectionResult.name`

@@ -5,7 +5,6 @@ from __future__ import annotations
 import ctypes
 import sys
 import traceback
-from pathlib import Path
 
 import gi
 
@@ -33,16 +32,13 @@ def _log_writer(log_level, fields, n_fields, user_data):  # pylint: disable=unus
 
 GLib.log_set_writer_func(_log_writer, None)
 
-from .config import load_reflector_config, save_user_config, USER_CONF
+from .config import load_config, save_user_config, USER_CONF
 from .country_detect import detect_country
-from .reflector import get_countries, ReflectorOptions
-from .mirrorlist import (
-    fetch_full_mirrorlist,
-    annotate_with_countries,
-    MIRRORLIST_PATH,
-)
+from .arch_mirrors import get_countries
+from .mirrorlist import MIRRORLIST_PATH
+from .models import ReflectorOptions
 from .gui.main_window import MainWindow
-from .gui.progress import ProgressWindow
+from .gui.arch_progress import ArchProgressWindow
 from .gui.distro_progress import DistroProgressWindow
 from .gui.preview import MirrorlistPreviewWindow
 
@@ -66,56 +62,24 @@ def _on_activate(app: Gtk.Application) -> None:
     """Called by GTK when the application starts."""
     app.connect("window-removed", _on_window_removed)
 
-    # ------------------------------------------------------------------
-    # Load reflector config and detect country
-    # ------------------------------------------------------------------
-    refl_cfg = load_reflector_config()
-
     detection = detect_country()
     local_code = detection.code if detection else "WW"
 
-    # ------------------------------------------------------------------
-    # Fetch country list
-    # ------------------------------------------------------------------
     try:
         countries = get_countries()
     except RuntimeError as exc:
-        _show_error(app, f"Cannot fetch country list:\n{exc}")
+        _show_error(app, f"Cannot fetch mirror list:\n{exc}")
         return
 
-    # ------------------------------------------------------------------
-    # Build defaults from config file
-    # ------------------------------------------------------------------
-    defaults = ReflectorOptions()
-    if refl_cfg:
-        defaults.countries = refl_cfg.countries
-        defaults.protocols = refl_cfg.protocols or ["https"]
-        defaults.sort = refl_cfg.sort or "rate"
-        if refl_cfg.latest:
-            defaults.number = int(refl_cfg.latest)
-            defaults.use_latest = True
-        else:
-            defaults.number = int(refl_cfg.number or 10)
-        if refl_cfg.age:
-            defaults.age = int(refl_cfg.age)
-        if refl_cfg.download_timeout:
-            defaults.download_timeout = int(refl_cfg.download_timeout)
-        if refl_cfg.threads:
-            defaults.threads = int(refl_cfg.threads)
+    defaults = load_config() or ReflectorOptions()
 
-    # Bootstrap: write own settings file on first launch so subsequent
-    # launches never need to read third-party configs again.
     if not USER_CONF.exists():
         save_user_config(defaults)
 
-    # ------------------------------------------------------------------
-    # Step 1: Main selection window
-    # ------------------------------------------------------------------
     _show_main_window(app, countries, local_code, defaults)
 
 
 def _show_main_window(app, countries, local_code, defaults) -> None:
-
     def _on_result(result) -> None:
         try:
             _handle_main_result(app, result, countries)
@@ -139,8 +103,6 @@ def _handle_main_result(app, result, countries) -> None:
 
     # Step 2a: distro mirror ranking (if any sets selected)
     if result.distro_sets:
-        # Convert selected country codes → names for distro mirrorlist filtering.
-        # "WW" means Worldwide (no filter), so we exclude it.
         selected_codes = set(result.options.countries) - {"WW"}
         country_names: set[str] | None = None
         if selected_codes:
@@ -167,31 +129,22 @@ def _handle_main_result(app, result, countries) -> None:
 
 
 def _start_arch_ranking(app: Gtk.Application, result) -> None:
-    """Step 2b/3: Run reflector and show progress."""
-    progress = ProgressWindow(
+    """Step 2b/3: Rank Arch mirrors using our own speed tester."""
+    progress = ArchProgressWindow(
         app=app,
         options=result.options,
-        expected_count=result.options.number,
-        on_done=lambda path: _on_ranking_done(app, path),
+        on_done=lambda content: _on_ranking_done(app, content),
     )
     progress.present()
     progress.start()
 
 
-def _on_ranking_done(app, tmp_path) -> None:
-    """Step 4: reflector finished — annotate and show preview."""
-    if tmp_path is None:
+def _on_ranking_done(app, content: str | None) -> None:
+    """Step 4: ranking finished — show preview for confirmation."""
+    if content is None:
         return
 
-    try:
-        ranked_content = Path(tmp_path).read_text(encoding="utf-8")
-    except OSError as exc:
-        _show_error(app, f"Cannot read ranked mirrorlist:\n{exc}")
-        return
-    finally:
-        Path(tmp_path).unlink(missing_ok=True)
-
-    if "Server = " not in ranked_content:
+    if "Server = " not in content:
         _show_error(
             app,
             "No mirrors found!\n\n"
@@ -202,21 +155,9 @@ def _on_ranking_done(app, tmp_path) -> None:
         )
         return
 
-    # Annotate with country headers (best-effort, not fatal)
-    annotated = ranked_content
-    try:
-        full_ml = fetch_full_mirrorlist()
-        annotated = annotate_with_countries(
-            ranked_content=ranked_content,
-            full_mirrorlist=full_ml,
-        )
-    except Exception:
-        pass
-
-    # Step 5: preview + save confirmation
     win = MirrorlistPreviewWindow(
         app=app,
-        content=annotated,
+        content=content,
         dest=MIRRORLIST_PATH,
     )
     win.present()
@@ -232,7 +173,6 @@ def _show_error(app: Gtk.Application, message: str) -> None:
         dialog.set_buttons(["Close"])
         dialog.show(windows[0])
     else:
-        # No parent window — create a minimal standalone error window.
         win = Gtk.ApplicationWindow(application=app, title="refract error")
         win.set_default_size(480, 200)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)

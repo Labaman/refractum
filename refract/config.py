@@ -1,23 +1,12 @@
 """
-Read and save refract's own configuration.
+Read and save refract's configuration in TOML format.
 
-Config files (reflector CLI flags, one per line):
+User config: ~/.config/refract/settings.toml  (written on every OK)
+System config: /etc/refract.toml              (written via pkexec)
 
-    --country RU
-    --protocol https
-    --sort rate
-    --age 24
-    --number 10
-    --download-timeout 5
-
-Startup lookup (first file that exists wins):
-  1. ~/.config/refract/settings.conf   — personal settings (written on every OK)
-  2. /etc/refract.conf                 — system-wide defaults (set by admin)
-  3. /etc/reflector-simple.conf        — first-launch bootstrap from reflector-simple
-  4. /etc/xdg/reflector/reflector.conf — first-launch bootstrap from reflector
-
-On first launch the bootstrapped defaults are written to settings.conf
-immediately, so external configs are never read again after the first run.
+First-launch bootstrap (read-only, never written):
+  /etc/reflector-simple.conf  — reflector-simple format (imported once, read-only)
+  /etc/xdg/reflector/reflector.conf  — reflector format (imported once, read-only)
 """
 
 from __future__ import annotations
@@ -26,22 +15,134 @@ import re
 import shlex
 import subprocess
 import tempfile
+import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .reflector import ReflectorOptions
+from .models import ReflectorOptions
 
 
-USER_CONF = Path.home() / ".config" / "refract" / "settings.conf"
-GLOBAL_CONF = Path("/etc/refract.conf")
-REFLECTOR_CONF = Path("/etc/xdg/reflector/reflector.conf")
-REFLECTOR_SIMPLE_CONF = Path("/etc/reflector-simple.conf")
+USER_CONF = Path.home() / ".config" / "refract" / "settings.toml"
+_OLD_USER_CONF = Path.home() / ".config" / "refract" / "settings.conf"
+GLOBAL_CONF = Path("/etc/refract.toml")
+_REFLECTOR_SIMPLE_CONF = Path("/etc/reflector-simple.conf")
+_REFLECTOR_CONF = Path("/etc/xdg/reflector/reflector.conf")
+
+
+def load_config(path: Path | None = None) -> ReflectorOptions | None:
+    """
+    Load config and return ReflectorOptions, or None if no config exists.
+
+    Search order when path is not given:
+      1. ~/.config/refract/settings.toml  (TOML)
+      2. ~/.config/refract/settings.conf  (legacy pre-1.5.0, migrated silently)
+      3. /etc/refract.toml                (TOML)
+      4. /etc/reflector-simple.conf       (reflector-simple format, imported once on first launch)
+      5. /etc/xdg/reflector/reflector.conf (reflector format, imported once on first launch)
+    """
+    if path is not None:
+        return _load_toml(path) if path.exists() else None
+
+    if USER_CONF.exists():
+        return _load_toml(USER_CONF)
+    if _OLD_USER_CONF.exists():
+        return _bootstrap_from_reflector(_OLD_USER_CONF)
+    if GLOBAL_CONF.exists():
+        return _load_toml(GLOBAL_CONF)
+    for legacy in (_REFLECTOR_SIMPLE_CONF, _REFLECTOR_CONF):
+        if legacy.exists():
+            return _bootstrap_from_reflector(legacy)
+    return None
+
+
+def save_user_config(opts: ReflectorOptions, path: Path = USER_CONF) -> None:
+    """Save options to the personal config file (no root needed)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(_to_toml(opts), encoding="utf-8")
+
+
+def save_global_config(opts: ReflectorOptions, path: Path = GLOBAL_CONF) -> None:
+    """
+    Save options to the system-wide config file via pkexec (requires root).
+
+    Raises PermissionError if the user cancels the pkexec dialog.
+    Raises subprocess.CalledProcessError on other failures.
+    """
+    content = _to_toml(opts)
+    tmp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as tmp:
+            tmp.write(content)
+            tmp_path = Path(tmp.name)
+
+        result = subprocess.run(
+            ["pkexec", "bash", "-c", f"cp {shlex.quote(str(tmp_path))} {shlex.quote(str(path))}"],
+            timeout=60,
+            check=False,
+        )
+        if result.returncode == 126:
+            raise PermissionError("User cancelled the pkexec authorization dialog")
+        if result.returncode != 0:
+            raise subprocess.CalledProcessError(result.returncode, "pkexec")
+    finally:
+        if tmp_path:
+            tmp_path.unlink(missing_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# TOML read / write
+# ---------------------------------------------------------------------------
+
+
+def _load_toml(path: Path) -> ReflectorOptions | None:
+    try:
+        with open(path, "rb") as f:
+            data = tomllib.load(f)
+    except Exception:
+        return None
+
+    opts = ReflectorOptions()
+    opts.countries = data.get("countries", [])
+    opts.protocols = data.get("protocols", ["https"])
+    opts.sort = data.get("sort", "rate")
+    opts.number = int(data.get("number", 10))
+    opts.use_latest = bool(data.get("use_latest", False))
+    if "age" in data:
+        opts.age = int(data["age"])
+    opts.download_timeout = int(data.get("download_timeout", 10))
+    if "threads" in data:
+        opts.threads = int(data["threads"])
+    return opts
+
+
+def _to_toml(opts: ReflectorOptions) -> str:
+    lines = []
+    lines.append(f"countries = {_toml_list(opts.countries)}")
+    lines.append(f"protocols = {_toml_list(opts.protocols)}")
+    lines.append(f'sort = "{opts.sort}"')
+    lines.append(f"use_latest = {'true' if opts.use_latest else 'false'}")
+    lines.append(f"number = {opts.number}")
+    if opts.age is not None:
+        lines.append(f"age = {opts.age}")
+    lines.append(f"download_timeout = {opts.download_timeout}")
+    if opts.threads is not None:
+        lines.append(f"threads = {opts.threads}")
+    return "\n".join(lines) + "\n"
+
+
+def _toml_list(values: list[str]) -> str:
+    """Serialize a list of strings as a TOML inline array."""
+    items = ", ".join(f'"{v}"' for v in values)
+    return f"[{items}]"
+
+
+# ---------------------------------------------------------------------------
+# Legacy reflector format bootstrap (read-only, first launch only)
+# ---------------------------------------------------------------------------
 
 
 @dataclass
-class ReflectorConfig:
-    """Options parsed from a reflector-format config file."""
-
+class _ReflectorConfig:
     countries: list[str] = field(default_factory=list)
     protocols: list[str] = field(default_factory=list)
     sort: str = ""
@@ -52,43 +153,49 @@ class ReflectorConfig:
     threads: str = ""
 
 
-def load_reflector_config(path: Path | None = None) -> ReflectorConfig | None:
-    """
-    Parse a reflector config file into a ReflectorConfig.
-
-    If path is not given, tries USER_CONF, GLOBAL_CONF, REFLECTOR_SIMPLE_CONF,
-    then REFLECTOR_CONF. Returns None if no file is found.
-    """
-    if path is None:
-        for candidate in (USER_CONF, GLOBAL_CONF, REFLECTOR_SIMPLE_CONF, REFLECTOR_CONF):
-            if candidate.exists():
-                path = candidate
-                break
-        else:
-            return None
-    if not path.exists():
+def _bootstrap_from_reflector(path: Path) -> ReflectorOptions | None:
+    """Parse a legacy reflector-format config into ReflectorOptions."""
+    cfg = _parse_reflector_file(path)
+    if cfg is None:
         return None
 
-    cfg = ReflectorConfig()
-    raw_lines = _read_clean_lines(path)
+    opts = ReflectorOptions()
+    opts.countries = cfg.countries
+    opts.protocols = cfg.protocols or ["https"]
+    opts.sort = cfg.sort or "rate"
+    if cfg.latest:
+        opts.number = int(cfg.latest)
+        opts.use_latest = True
+    else:
+        opts.number = int(cfg.number or 10)
+    if cfg.age:
+        opts.age = int(cfg.age)
+    if cfg.download_timeout:
+        opts.download_timeout = int(cfg.download_timeout)
+    if cfg.threads:
+        opts.threads = int(cfg.threads)
+    return opts
 
-    tokens: list[tuple[str, str]] = []
-    for line in raw_lines:
-        parts = line.split(None, 1)
-        if not parts:
+
+def _parse_reflector_file(path: Path) -> _ReflectorConfig | None:
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+
+    cfg = _ReflectorConfig()
+    for line in raw.splitlines():
+        line = line.split("#", 1)[0].strip().strip("\"'")
+        if not line:
             continue
+        parts = line.split(None, 1)
         opt = parts[0]
         val = parts[1] if len(parts) > 1 else ""
 
-        # Compact short options: -cDE,FR  =>  opt="-c"  val="DE,FR"
-        match = re.match(r"^(-[cpanl])(.+)$", opt)
-        if match:
-            opt = match.group(1)
-            val = match.group(2)
+        m = re.match(r"^(-[cpanl])(.+)$", opt)
+        if m:
+            opt, val = m.group(1), m.group(2)
 
-        tokens.append((opt, val))
-
-    for opt, val in tokens:
         match opt:
             case "--protocol" | "-p":
                 cfg.protocols.extend(v.strip() for v in val.split(","))
@@ -108,69 +215,3 @@ def load_reflector_config(path: Path | None = None) -> ReflectorConfig | None:
                 cfg.threads = val
 
     return cfg
-
-
-def save_user_config(opts: ReflectorOptions, path: Path = USER_CONF) -> None:
-    """Save options to the personal config file (no root needed)."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("\n".join(_build_config_lines(opts)) + "\n", encoding="utf-8")
-
-
-def save_global_config(opts: ReflectorOptions, path: Path = GLOBAL_CONF) -> None:
-    """
-    Save options to the system-wide config file via pkexec (requires root).
-
-    Raises PermissionError if the user cancels the pkexec dialog.
-    Raises subprocess.CalledProcessError on other failures.
-    """
-    content = "\n".join(_build_config_lines(opts)) + "\n"
-    tmp_path: Path | None = None
-    try:
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".conf", delete=False) as tmp:
-            tmp.write(content)
-            tmp_path = Path(tmp.name)
-
-        result = subprocess.run(
-            ["pkexec", "bash", "-c", f"cp {shlex.quote(str(tmp_path))} {shlex.quote(str(path))}"],
-            timeout=60,
-            check=False,
-        )
-        if result.returncode == 126:
-            raise PermissionError("User cancelled the pkexec authorisation dialog")
-        if result.returncode != 0:
-            raise subprocess.CalledProcessError(result.returncode, "pkexec")
-    finally:
-        if tmp_path:
-            tmp_path.unlink(missing_ok=True)
-
-
-def _build_config_lines(opts: ReflectorOptions) -> list[str]:
-    lines = []
-    for code in opts.countries:
-        if code:
-            lines.append(f"--country {code}")
-    for proto in opts.protocols:
-        if proto:
-            lines.append(f"--protocol {proto}")
-    if opts.sort:
-        lines.append(f"--sort {opts.sort}")
-    if opts.use_latest:
-        lines.append(f"--latest {opts.number}")
-    else:
-        if opts.age:
-            lines.append(f"--age {opts.age}")
-        lines.append(f"--number {opts.number}")
-    lines.append(f"--download-timeout {opts.download_timeout}")
-    if opts.threads is not None and opts.threads > 1:
-        lines.append(f"--threads {opts.threads}")
-    return lines
-
-
-def _read_clean_lines(path: Path) -> list[str]:
-    lines = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.split("#", 1)[0].strip()
-        line = line.strip("\"'")
-        if line:
-            lines.append(line)
-    return lines

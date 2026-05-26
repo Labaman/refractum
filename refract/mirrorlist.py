@@ -1,10 +1,8 @@
 """
-Mirrorlist post-processing and saving.
+Mirrorlist saving utilities.
 
-Responsibilities:
-  - fetch the full Arch mirrorlist from archlinux.org
-  - annotate each selected mirror with its country name
-  - save the result to /etc/pacman.d/mirrorlist using pkexec
+Saves one or more mirrorlist files via a single pkexec invocation
+to avoid repeated password prompts.
 """
 
 from __future__ import annotations
@@ -14,118 +12,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-import requests
-
 MIRRORLIST_PATH = Path("/etc/pacman.d/mirrorlist")
-ARCH_MIRRORLIST_URL = "https://archlinux.org/mirrorlist/all"
-
-
-# ---------------------------------------------------------------------------
-# Fetch the full Arch mirrorlist
-# ---------------------------------------------------------------------------
-
-
-def fetch_full_mirrorlist(timeout: int = 15) -> str:
-    """
-    Download the complete Arch Linux mirrorlist from archlinux.org.
-
-    Returns the raw text content.
-    Raises requests.RequestException on network error.
-    """
-    response = requests.get(ARCH_MIRRORLIST_URL, timeout=timeout)
-    response.raise_for_status()
-    return response.text
-
-
-# ---------------------------------------------------------------------------
-# Annotate mirrorlist with country names
-# ---------------------------------------------------------------------------
-
-
-def annotate_with_countries(
-    ranked_content: str,
-    full_mirrorlist: str,
-) -> str:
-    """
-    Add country header comments to the ranked mirrorlist.
-
-    `reflector` produces a flat list of `Server = …` lines.
-    This function inserts `## CountryName` headers above each server
-    by looking up which country section that server appears in within
-    the full Arch mirrorlist.
-
-    Returns the annotated mirrorlist text.
-    """
-    # Collect server URLs from the ranked output
-    ranked_servers = _extract_servers(ranked_content)
-
-    # Parse the full mirrorlist into {country_name: [url, …]}
-    country_map = _parse_full_mirrorlist(full_mirrorlist)
-
-    # Build server -> country_name lookup
-    server_to_country: dict[str, str] = {}
-    for country_name, servers in country_map.items():
-        for url in servers:
-            server_to_country[url] = country_name
-
-    # Rebuild the mirrorlist, inserting country headers
-    lines: list[str] = []
-
-    # Keep original header comments from the ranked output
-    for line in ranked_content.splitlines():
-        if line.startswith("#"):
-            lines.append(line)
-        else:
-            break
-
-    current_country: str | None = None
-
-    for server_url in ranked_servers:
-        country = server_to_country.get(server_url)
-
-        if country and country != current_country:
-            lines.append("")
-            lines.append(f"## {country}")
-            current_country = country
-
-        lines.append(f"Server = {server_url}")
-
-    return "\n".join(lines) + "\n"
-
-
-def _extract_servers(content: str) -> list[str]:
-    """Extract server URLs from mirrorlist text."""
-    servers = []
-    for line in content.splitlines():
-        if line.startswith("Server = "):
-            servers.append(line[len("Server = ") :].strip())
-    return servers
-
-
-def _parse_full_mirrorlist(content: str) -> dict[str, list[str]]:
-    """
-    Parse the full Arch mirrorlist into {country_name: [server_url, …]}.
-
-    The file format uses `## Country Name` as section headers and
-    `#Server = url` (commented out) as entries.
-    """
-    result: dict[str, list[str]] = {}
-    current: str | None = None
-
-    for line in content.splitlines():
-        if line.startswith("## ") and not line.startswith("## Generated"):
-            current = line[3:].strip()
-            result.setdefault(current, [])
-        elif line.startswith("#Server = ") and current:
-            url = line[len("#Server = ") :].strip()
-            result[current].append(url)
-
-    return result
-
-
-# ---------------------------------------------------------------------------
-# Save mirrorlist
-# ---------------------------------------------------------------------------
 
 
 def save_mirrorlist(content: str, dest: Path = MIRRORLIST_PATH) -> None:
@@ -151,7 +38,7 @@ def save_mirrorlist_batch(files: list[tuple[str, Path]]) -> None:
     if not files:
         return
 
-    tmp_pairs: list[tuple[Path, Path]] = []  # (tmp_path, dest_path)
+    tmp_pairs: list[tuple[Path, Path]] = []
     try:
         for content, dest in files:
             with tempfile.NamedTemporaryFile(mode="w", suffix=".mirrorlist", delete=False) as tmp:
@@ -173,7 +60,7 @@ def save_mirrorlist_batch(files: list[tuple[str, Path]]) -> None:
             check=False,
         )
         if result.returncode == 126:
-            raise PermissionError("User cancelled the pkexec authorisation dialog")
+            raise PermissionError("User cancelled the pkexec authorization dialog")
         if result.returncode != 0:
             raise subprocess.CalledProcessError(result.returncode, "pkexec")
     finally:

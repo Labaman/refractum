@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import difflib
 import re
-from collections.abc import Callable
 from pathlib import Path
 
 import gi
@@ -22,15 +21,15 @@ from ..mirrorlist import save_mirrorlist
 
 
 # ---------------------------------------------------------------------------
-# Colour constants (hex strings for TextTag foreground)
+# Color constants (hex strings for TextTag foreground)
 # ---------------------------------------------------------------------------
-_C_COMMENT = "#888888"  # grey  — plain comment lines
+_C_COMMENT = "#888888"  # gray  — plain comment lines
 _C_HEADER = "#4caf50"  # green — ## Country Name
 _C_SERVER = "#64b5f6"  # blue  — Server = https://…
 _C_URL = "#90caf9"  # light blue — the URL part of Server line
 _C_DIFF_ADD = "#1b5e20"  # dark green background — added lines
 _C_DIFF_REM = "#b71c1c"  # dark red background   — removed lines
-_C_DIFF_META = "#555555"  # grey  — @@ … @@ context markers
+_C_DIFF_META = "#555555"  # gray  — @@ … @@ context markers
 
 
 class MirrorlistPreviewWindow(Gtk.Window):
@@ -49,16 +48,12 @@ class MirrorlistPreviewWindow(Gtk.Window):
         app: Gtk.Application,
         content: str,
         dest: Path,
-        on_saved: Callable[[], None] | None = None,
-        on_discard: Callable[[], None] | None = None,
     ) -> None:
         super().__init__(application=app, title="New mirrorlist — confirm save")
         self.set_default_size(860, 600)
 
         self._content = content
         self._dest = dest
-        self._on_saved = on_saved
-        self._on_discard = on_discard
 
         self._build_ui()
 
@@ -207,7 +202,7 @@ class MirrorlistPreviewWindow(Gtk.Window):
         """
         Gtk.TextBuffer uses *tags* to apply formatting to ranges of text.
 
-        A tag is a named set of text attributes (colour, weight, style…).
+        A tag is a named set of text attributes (color, weight, style…).
         You create tags on the buffer, then apply them to ranges using
         apply_tag(tag, start_iter, end_iter).
 
@@ -222,7 +217,7 @@ class MirrorlistPreviewWindow(Gtk.Window):
         t.create_tag("server_kw", foreground=_C_SERVER, weight=Pango.Weight.BOLD)
         t.create_tag("url", foreground=_C_URL)
 
-        # Diff tags use background colour instead of foreground
+        # Diff tags use background color instead of foreground
         t.create_tag("diff_add", background=_C_DIFF_ADD, foreground="#ffffff")
         t.create_tag("diff_rem", background=_C_DIFF_REM, foreground="#ffffff")
         t.create_tag("diff_meta", foreground=_C_DIFF_META, style=Pango.Style.ITALIC)
@@ -349,13 +344,9 @@ class MirrorlistPreviewWindow(Gtk.Window):
 
     def _on_discard_clicked(self, _: Gtk.Button) -> None:
         self.close()
-        if self._on_discard:
-            self._on_discard()
 
     def _finish_saved(self) -> None:
         self.close()
-        if self._on_saved:
-            self._on_saved()
 
     def _show_error(self, message: str) -> None:
         dialog = Gtk.AlertDialog()

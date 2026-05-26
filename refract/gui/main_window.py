@@ -2,7 +2,7 @@
 Main selection window — GTK4 / PyGObject.
 
 Two tabs via Gtk.Notebook:
-  1. "Arch mirrors"  — country + reflector options (as before)
+  1. "Arch mirrors"  — country + mirror options
   2. "Distro mirrors" — CachyOS / EndeavourOS / Artix speed-based ranking
 """
 
@@ -16,9 +16,7 @@ from gi.repository import Gtk  # noqa: E402
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from pathlib import Path
-
-from ..reflector import Country, ReflectorOptions
+from ..models import Country, ReflectorOptions
 from ..config import save_user_config, save_global_config
 from ..distros import MirrorSet, ALL_MIRROR_SETS, installed_mirror_sets, detect_distro_id
 
@@ -44,8 +42,6 @@ class SelectionResult:
 
 
 class MainWindow(Gtk.ApplicationWindow):
-    FREE_PARAMS_FILE = Path.home() / ".config" / "refract" / "free-params.txt"
-
     def __init__(
         self,
         app: Gtk.Application,
@@ -100,7 +96,7 @@ class MainWindow(Gtk.ApplicationWindow):
         root.append(self._make_buttons())
 
     # ------------------------------------------------------------------
-    # Tab 1: Arch mirrors (reflector-based)
+    # Tab 1: Arch mirrors
     # ------------------------------------------------------------------
 
     def _build_arch_tab(self) -> Gtk.Box:
@@ -134,7 +130,7 @@ class MainWindow(Gtk.ApplicationWindow):
         grid.set_margin_start(4)
         grid.set_margin_top(4)
 
-        pre_selected = set(self._defaults.countries) | {self._local_code}
+        pre_selected = set(self._defaults.countries) if self._defaults.countries else {self._local_code}
         ww_active = "WW" in pre_selected
 
         n = len(self._countries)
@@ -158,7 +154,7 @@ class MainWindow(Gtk.ApplicationWindow):
         return scroll
 
     def _make_options(self) -> Gtk.Frame:
-        frame = Gtk.Frame(label="Reflector options")
+        frame = Gtk.Frame(label="Mirror options")
         frame.set_margin_top(4)
 
         grid = Gtk.Grid()
@@ -246,13 +242,6 @@ class MainWindow(Gtk.ApplicationWindow):
         grid.attach(self._threads_spin, 1, row, 1, 1)
         row += 1
 
-        # Extra args
-        grid.attach(Gtk.Label(label="Extra reflector args:", xalign=0), 0, row, 1, 1)
-        self._extra_entry = Gtk.Entry()
-        self._extra_entry.set_text(self._load_free_params())
-        self._extra_entry.set_hexpand(True)
-        grid.attach(self._extra_entry, 1, row, 3, 1)
-
         return frame
 
     # ------------------------------------------------------------------
@@ -272,7 +261,7 @@ class MainWindow(Gtk.ApplicationWindow):
         box.append(
             Gtk.Label(
                 label="Select which distro mirror lists to rank by download speed.\n"
-                "Greyed out entries are not installed on this system.\n"
+                "Grayed out entries are not installed on this system.\n"
                 "This is independent of the Arch mirrors tab — uncheck all to skip.",
                 xalign=0,
             )
@@ -288,7 +277,7 @@ class MainWindow(Gtk.ApplicationWindow):
                 derived_by_primary.setdefault(ms.primary_id, []).append(ms)
 
         # Pre-select the set that matches the running distro (if any).
-        # Plain Arch uses reflector (Arch tab), so no distro set is pre-selected.
+        # Plain Arch has no distro-specific mirror set, so nothing is pre-selected.
         _distro_to_set_id = {
             "cachyos": "cachyos",
             "endeavouros": "endeavouros",
@@ -396,7 +385,7 @@ class MainWindow(Gtk.ApplicationWindow):
         box.set_margin_top(8)
 
         global_btn = Gtk.Button(label="Save as global default")
-        global_btn.set_tooltip_text("Write current settings to /etc/refract.conf (requires root)")
+        global_btn.set_tooltip_text("Write current settings to /etc/refract.toml (requires root)")
         global_btn.connect("clicked", self._on_save_global)
 
         spacer = Gtk.Box()
@@ -422,7 +411,7 @@ class MainWindow(Gtk.ApplicationWindow):
     def _collect_options(self) -> ReflectorOptions:
         selected_codes = [c.code for c, cb in zip(self._countries, self._country_checks) if cb.get_active()]
         if "WW" in selected_codes:
-            selected_codes = ["WW"]  # WW = no country filter; discard greyed-out individuals
+            selected_codes = ["WW"]  # WW = no country filter; discard grayed-out individuals
         protocols = []
         if self._https_cb.get_active():
             protocols.append("https")
@@ -431,7 +420,6 @@ class MainWindow(Gtk.ApplicationWindow):
         if self._rsync_cb.get_active():
             protocols.append("rsync")
 
-        extra_raw = self._extra_entry.get_text().strip()
         use_latest = self._radio_latest.get_active()
         return ReflectorOptions(
             countries=selected_codes,
@@ -442,13 +430,9 @@ class MainWindow(Gtk.ApplicationWindow):
             number=int(self._number_spin.get_value()),
             download_timeout=int(self._timeout_spin.get_value()),
             threads=int(self._threads_spin.get_value()),
-            extra_args=extra_raw.split() if extra_raw else [],
         )
 
     def _on_ok(self, _: Gtk.Button) -> None:
-        extra_raw = self._extra_entry.get_text().strip()
-        self._save_free_params(extra_raw)
-
         opts = self._collect_options()
         save_user_config(opts)
 
@@ -481,7 +465,7 @@ class MainWindow(Gtk.ApplicationWindow):
         opts = self._collect_options()
         try:
             save_global_config(opts)
-            self._show_toast("System defaults saved to /etc/refract.conf")
+            self._show_toast("System defaults saved to /etc/refract.toml")
         except PermissionError:
             pass  # user cancelled pkexec — no error needed
         except Exception as exc:
@@ -520,11 +504,3 @@ class MainWindow(Gtk.ApplicationWindow):
         dialog.set_buttons(["OK"])
         dialog.show(self)
 
-    def _load_free_params(self) -> str:
-        if self.FREE_PARAMS_FILE.exists():
-            return self.FREE_PARAMS_FILE.read_text(encoding="utf-8").strip()
-        return ""
-
-    def _save_free_params(self, params: str) -> None:
-        self.FREE_PARAMS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        self.FREE_PARAMS_FILE.write_text(params, encoding="utf-8")

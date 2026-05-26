@@ -6,11 +6,12 @@ GUI tool for ranking pacman mirrors on Arch Linux and Arch-based distributions.
 
 ## Features
 
-- **Arch mirrors** — ranks mirrors via [reflector](https://wiki.archlinux.org/title/Reflector) with a graphical country selector and full option control
+- **Arch mirrors** — fetches mirror data directly from `archlinux.org/mirrors/status/json/` and ranks by download speed; no reflector required
 - **Distro mirrors** — ranks distro-specific and third-party repo mirrors by download speed
 - **Live progress** — results appear in real time as each mirror is tested
 - **Country filter** — applies to both Arch and distro mirrors
 - **Parallel testing** — configurable thread count for faster ranking
+- **pacman User-Agent** — speed tests identify as pacman so mirrors that filter by User-Agent respond correctly
 - **Auto-detection** — pre-selects the current distro's mirror set automatically
 - **Preview + diff** — shows the new mirrorlist with syntax highlighting and a diff against the current file before saving
 
@@ -20,7 +21,7 @@ GUI tool for ranking pacman mirrors on Arch Linux and Arch-based distributions.
 
 | Distro | Mirrorlist file |
 | --- | --- |
-| Arch Linux | `/etc/pacman.d/mirrorlist` (via reflector) |
+| Arch Linux | `/etc/pacman.d/mirrorlist` |
 | CachyOS (x86\_64 / v3 / v4) | `/etc/pacman.d/cachyos-mirrorlist` + derived |
 | EndeavourOS | `/etc/pacman.d/endeavouros-mirrorlist` |
 | Artix Linux | `/etc/pacman.d/artix-mirrorlist` |
@@ -35,16 +36,19 @@ GUI tool for ranking pacman mirrors on Arch Linux and Arch-based distributions.
 | Arch Linux CN | `/etc/pacman.d/archlinuxcn-mirrorlist` |
 | Arch4edu | `/etc/pacman.d/arch4edu-mirrorlist` |
 
-Only mirrorlist files present on the system are active; the rest are shown greyed out.
+Only mirrorlist files present on the system are active; the rest are shown grayed out.
 
 ## Requirements
 
 - Python ≥ 3.11
 - GTK4 (`gtk4`)
 - PyGObject (`python-gobject`)
-- reflector (`reflector`)
 - polkit (`polkit`)
 - python-requests (`python-requests`)
+
+**Optional:**
+- `rsync` — required for speed testing rsync mirrors
+- `geoip` — improves country auto-detection via `geoiplookup`
 
 ## Installation
 
@@ -89,28 +93,28 @@ Launch from the application menu or run:
 refract
 ```
 
-**Arch mirrors tab** — select countries, protocols, sort order and mirror count, then click OK to run reflector. The result is shown in a preview window before saving.
+**Arch mirrors tab** — select countries, protocols, sort order and mirror count, then click OK. Mirror data is fetched from `archlinux.org/mirrors/status/json/` (cached for 5 minutes) and tested concurrently. The result is shown in a preview window before saving.
 
 **Distro mirrors tab** — select which distro mirror sets to re-rank. Rankings run concurrently; CachyOS v3/v4 are derived from the x86\_64 results without redundant network tests.
 
 ## Configuration
 
-Refract stores personal settings in `~/.config/refract/settings.conf`, written
+Refract stores personal settings in `~/.config/refract/settings.toml`, written
 automatically on every OK click and restored on the next launch.
 
 The **Save as global default** button writes the current settings to
-`/etc/refract.conf` (requires root via pkexec). This lets an admin set
+`/etc/refract.toml` (requires root via pkexec). This lets an admin set
 system-wide defaults that new users inherit on their first launch.
 
 On first run, if no personal settings file exists yet, initial values are
 bootstrapped from the first available source (checked in order):
 
-1. `/etc/refract.conf` — refract's own system-wide config
-2. `/etc/reflector-simple.conf` — reflector-simple config
-3. `/etc/xdg/reflector/reflector.conf` — reflector's own config
+1. `/etc/refract.toml` — refract's own system-wide config (TOML)
+2. `/etc/reflector-simple.conf` — reflector-simple config (imported once on first launch, read-only)
+3. `/etc/xdg/reflector/reflector.conf` — reflector config (imported once on first launch, read-only)
 4. Built-in defaults
 
-The bootstrapped settings are saved immediately to `~/.config/refract/settings.conf`,
+The bootstrapped settings are saved immediately to `~/.config/refract/settings.toml`,
 so external config files are never read again after the first launch.
 
 ## Acknowledgements

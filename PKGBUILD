@@ -1,7 +1,7 @@
 # Maintainer: Mikhail <efklid@gmail.com>
 # shellcheck disable=SC2034,SC2154
 pkgname=refract
-pkgver=1.4.3
+pkgver=1.5.0
 pkgrel=1
 pkgdesc="GUI tool for ranking pacman mirrors on Arch Linux and Arch-based distributions"
 arch=('any')
@@ -12,8 +12,11 @@ depends=(
     'python-requests'
     'python-gobject'
     'gtk4'
-    'reflector'
     'polkit'
+)
+optdepends=(
+    'rsync: speed testing for rsync mirrors'
+    'geoip: country auto-detection via geoiplookup'
 )
 makedepends=(
     'python-build'

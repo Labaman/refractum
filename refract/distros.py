@@ -5,9 +5,9 @@ Each MirrorSet describes one mirrorlist file: where to get the full list
 of available mirrors, how to construct a speed-test URL, and where to save
 the ranked result.
 
-Distros: CachyOS (x86_64, v3, v4), EndeavourOS, Artix, BlackArch, RebornOS, ArcoLinux.
+Distros: CachyOS (x86_64, v3, v4), EndeavourOS, Artix, BlackArch, RebornOS.
 Third-party repos: Chaotic-AUR, Arch Linux CN, Arch4edu.
-Arch Linux itself is handled by reflector (separate tab), not listed here.
+Arch Linux mirrors are handled via arch_mirrors.py (separate tab).
 """
 
 from __future__ import annotations
@@ -81,7 +81,7 @@ class MirrorSet:
 
 _COMMENTED_SERVER_RE = re.compile(r"^#\s*Server\s*=\s*(.+)$")
 # Matches section headers: "## Germany" or "## USA Mirror much thanks to…" etc.
-_SECTION_HEADER_RE = re.compile(r"^#{1,2}\s+(.{2,60})$")
+_SECTION_HEADER_RE = re.compile(r"^##\s+(.{2,60})$")
 _CODE_RE = re.compile(r"\bcode=([A-Za-z]{2})\b")
 
 
@@ -249,7 +249,7 @@ def get_template_countries(text: str, include_commented: bool = True) -> dict[st
 
     Metadata lines (containing "=" or a skip word) do not change the current
     country — they are treated as continuation lines of the preceding header.
-    Empty string for templates that appear before any recognisable country header.
+    Empty string for templates that appear before any recognizable country header.
     """
     result: dict[str, str] = {}
     current_country = ""
@@ -350,7 +350,7 @@ def generate_mirrorlist(
 _GITHUB_RAW = "https://raw.githubusercontent.com"
 
 ALL_MIRROR_SETS: list[MirrorSet] = [
-    # NOTE: Arch Linux is handled by reflector (Arch mirrors tab), not listed here.
+    # NOTE: Arch Linux is handled via arch_mirrors.py (Arch mirrors tab), not listed here.
     MirrorSet(
         id="cachyos",
         display_name="CachyOS (x86_64)",

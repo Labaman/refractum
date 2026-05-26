@@ -2,7 +2,7 @@
 Progress window for speed-based distro mirror ranking.
 
 Shows a live table of mirror results as they come in,
-instead of the log-style progress used for reflector.
+with live per-mirror results as they arrive.
 
 Architecture for sets with primary_id (e.g. CachyOS v3/v4):
   - Only the primary set (e.g. cachyos x86_64) is speed-tested.

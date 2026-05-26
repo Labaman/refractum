@@ -54,7 +54,7 @@ def _detect_via_locale() -> str | None:
     lc_time, _ = locale.getlocale(locale.LC_TIME)
     if not lc_time:
         return None
-    match = re.search(r"_([A-Z]{2})\.", lc_time)
+    match = re.search(r"_([A-Z]{2})", lc_time)
     if match:
         return match.group(1)
     return None
