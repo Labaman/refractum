@@ -11,7 +11,7 @@
     "Labaman", "archlinuxcn", "Arch4edu",
     "trizen", "paru",
     "pkexec", "polkit", "pacman", "makepkg", "mirrorlist", "mirrorlists", "reflector", "archlinux",
-    "geoip", "geoiplookup", "getlocale",
+    "geoip", "geoiplookup", "getlocale", "ipinfo", "geolocation",
     "PyGObject", "gobject", "PKGBUILD", "SRCINFO", "hatchling",
     "shlex",
     "Réunion", "Türkiye",
