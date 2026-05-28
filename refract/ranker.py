@@ -11,9 +11,6 @@ This is the approach used by rate-mirrors and eos-rankmirrors.
 
 from __future__ import annotations
 
-import os
-import subprocess
-import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
@@ -91,50 +88,6 @@ def test_mirror_speed(
         pass
 
     return None
-
-
-def test_rsync_speed(url: str, timeout: float = 10.0) -> float | None:
-    """
-    Download a file via rsync subprocess and return bytes/second.
-
-    Mirrors the approach used by reflector: runs rsync into a temp directory,
-    then measures file size / elapsed time.
-    Returns None if rsync is not installed or the mirror is unreachable.
-    """
-    connection_timeout = max(5, int(timeout / 2))
-    try:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            start = time.monotonic()
-            result = subprocess.run(
-                [
-                    "rsync",
-                    "-aL",
-                    "--no-motd",
-                    f"--contimeout={connection_timeout}",
-                    url,
-                    tmpdir,
-                ],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=timeout,
-            )
-            elapsed = time.monotonic() - start
-
-            if result.returncode != 0:
-                return None
-
-            filename = os.path.basename(url.rstrip("/"))
-            filepath = os.path.join(tmpdir, filename)
-            if not os.path.exists(filepath):
-                return None
-
-            size = os.path.getsize(filepath)
-            if elapsed > 0 and size > 1024:
-                return size / elapsed
-            return 0.0
-
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-        return None
 
 
 def _check_fallback(primary_url: str, timeout: float) -> float | None:

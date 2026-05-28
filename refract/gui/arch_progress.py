@@ -24,7 +24,7 @@ gi.require_version("Pango", "1.0")
 from gi.repository import Gtk, GLib, Pango  # noqa: E402
 
 from ..arch_mirrors import ArchMirror, fetch_mirrors, sort_no_test, format_mirrorlist
-from ..ranker import RankResult, test_mirror_speed, test_rsync_speed
+from ..ranker import RankResult, test_mirror_speed
 from ..models import ReflectorOptions
 
 
@@ -158,8 +158,6 @@ class ArchProgressWindow(Gtk.Window):
         timeout = float(opts.download_timeout)
 
         def _speed_fn(m: ArchMirror) -> float | None:
-            if m.protocol == "rsync":
-                return test_rsync_speed(m.make_test_url(), timeout)
             return test_mirror_speed(m.make_test_url(), timeout)
 
         try:

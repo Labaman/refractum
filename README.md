@@ -47,7 +47,6 @@ Only mirrorlist files present on the system are active; the rest are shown graye
 - python-requests (`python-requests`)
 
 **Optional:**
-- `rsync` — required for speed testing rsync mirrors
 - `geoip` — improves country auto-detection via `geoiplookup`
 
 ## Installation

@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.5.1] — 2026-05-28
+
+### Fixed
+- Country detection now tries methods sequentially (ipinfo → geoiplookup →
+  locale) instead of concurrently — concurrent mode always returned the locale
+  result first since it completes instantaneously, ignoring more accurate
+  geolocation methods
+
+### Removed
+- rsync protocol option removed from the Arch mirrors tab — pacman has never
+  supported rsync mirrorlist entries (libcurl limitation); the option was
+  producing "Protocol `rsync` not supported" errors in pacman
+
 ## [1.5.0] — 2026-05-26
 
 ### Added

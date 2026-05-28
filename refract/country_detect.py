@@ -5,9 +5,7 @@ from __future__ import annotations
 import locale
 import re
 import subprocess
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from collections.abc import Callable
 
 import requests
 
@@ -115,28 +113,23 @@ def _get_public_ipv4() -> str | None:
 # Public API
 # ---------------------------------------------------------------------------
 
-_METHODS: list[tuple[str, Callable[[], str | None]]] = [
-    ("ipinfo", _detect_via_ipinfo),
-    ("geoiplookup", _detect_via_geoiplookup),
-    ("locale", _detect_via_locale),
+_METHODS = [
+    _detect_via_ipinfo,
+    _detect_via_geoiplookup,
+    _detect_via_locale,
 ]
 
 
 def detect_country() -> CountryDetectionResult | None:
     """
-    Run all detection methods concurrently and return the first success.
+    Try each detection method in order and return the first success.
 
+    Order: ipinfo (most accurate) → geoiplookup → locale (least accurate).
     Returns:
         CountryDetectionResult on success, None if all methods fail.
     """
-    pool = ThreadPoolExecutor(max_workers=len(_METHODS))
-    futures = [pool.submit(fn) for _, fn in _METHODS]
-    try:
-        for future in as_completed(futures):
-            code = future.result()
-            if code:
-                return CountryDetectionResult(code=code)
-    finally:
-        pool.shutdown(wait=False, cancel_futures=True)
-
+    for fn in _METHODS:
+        code = fn()
+        if code:
+            return CountryDetectionResult(code=code)
     return None

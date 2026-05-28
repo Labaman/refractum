@@ -175,9 +175,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self._https_cb.set_active("https" in self._defaults.protocols if self._defaults.protocols else True)
         self._http_cb = Gtk.CheckButton(label="http")
         self._http_cb.set_active("http" in self._defaults.protocols)
-        self._rsync_cb = Gtk.CheckButton(label="rsync")
-        self._rsync_cb.set_active("rsync" in self._defaults.protocols)
-        for w in (self._https_cb, self._http_cb, self._rsync_cb):
+        for w in (self._https_cb, self._http_cb):
             proto_box.append(w)
         grid.attach(proto_box, 1, row, 3, 1)
         row += 1
@@ -417,8 +415,6 @@ class MainWindow(Gtk.ApplicationWindow):
             protocols.append("https")
         if self._http_cb.get_active():
             protocols.append("http")
-        if self._rsync_cb.get_active():
-            protocols.append("rsync")
 
         use_latest = self._radio_latest.get_active()
         return ReflectorOptions(
