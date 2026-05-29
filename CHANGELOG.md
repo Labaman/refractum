@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.2] — 2026-05-29
+
+### Fixed
+- Window icon now correctly displays the refract icon instead of the default
+  Wayland "W" placeholder — added `set_icon_name("refract")` to override
+  GTK4's app-ID-based icon lookup
+
 ## [1.5.1] — 2026-05-28
 
 ### Fixed

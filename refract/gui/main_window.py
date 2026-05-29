@@ -55,6 +55,7 @@ class MainWindow(Gtk.ApplicationWindow):
     ) -> None:
         super().__init__(application=app, title="refract — Select Arch mirrors")
         self.set_default_size(width, height)
+        self.set_icon_name("refract")
 
         self._countries = countries
         self._local_code = local_code
