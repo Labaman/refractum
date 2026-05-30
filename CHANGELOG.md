@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.6.0] — 2026-05-30
+
+### Changed
+- **Renamed the project to `refractum`** to avoid clashing with other tools
+  named "refract" on AUR, PyPI and GitHub
+  - command: `refract` → `refractum` (and `refract-rank` → `refractum-rank`)
+  - application ID: `io.github.Labaman.refractum` (freedesktop reverse-DNS)
+  - icon and desktop file: `io.github.Labaman.refractum.{svg,desktop}`
+  - config: `~/.config/refractum/`, cache: `~/.cache/refractum/`,
+    system config: `/etc/refractum.toml`
+- Window icon now resolves automatically via GTK4 app-ID lookup; explicit
+  `set_icon_name()` calls removed from all windows
+
+### Migration
+- The package `replaces` the old `refract` package, so `pacman -Syu` / AUR
+  helpers switch over automatically; the post-upgrade hook removes the old
+  icon and desktop files
+- Settings are not carried over from the old `refract` config directory — pick
+  your countries and options once on first launch
+
 ## [1.5.2] — 2026-05-29
 
 ### Fixed

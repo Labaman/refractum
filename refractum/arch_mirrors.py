@@ -19,7 +19,7 @@ import requests
 from .models import Country, WORLDWIDE
 
 MIRRORS_JSON_URL = "https://archlinux.org/mirrors/status/json/"
-_CACHE_PATH = Path.home() / ".cache" / "refract" / "mirrorstatus.json"
+_CACHE_PATH = Path.home() / ".cache" / "refractum" / "mirrorstatus.json"
 _CACHE_TTL = 300  # seconds
 
 

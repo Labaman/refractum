@@ -1,4 +1,4 @@
-"""Entry point for `python -m refract` and the `refract` console script."""
+"""Entry point for `python -m refractum` and the `refractum` console script."""
 
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ from .gui.distro_progress import DistroProgressWindow
 from .gui.preview import MirrorlistPreviewWindow
 
 
-APP_ID = "org.refract.mirrors"
+APP_ID = "io.github.Labaman.refractum"
 
 
 def main() -> None:
@@ -164,16 +164,16 @@ def _on_ranking_done(app, content: str | None) -> None:
 
 
 def _show_error(app: Gtk.Application, message: str) -> None:
-    print(f"[refract] ERROR: {message}", file=sys.stderr)
+    print(f"[refractum] ERROR: {message}", file=sys.stderr)
     windows = app.get_windows()
     if windows:
         dialog = Gtk.AlertDialog()
-        dialog.set_message("refract error")
+        dialog.set_message("refractum error")
         dialog.set_detail(message)
         dialog.set_buttons(["Close"])
         dialog.show(windows[0])
     else:
-        win = Gtk.ApplicationWindow(application=app, title="refract error")
+        win = Gtk.ApplicationWindow(application=app, title="refractum error")
         win.set_default_size(480, 200)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         box.set_margin_start(16)

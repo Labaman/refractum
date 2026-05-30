@@ -3,8 +3,8 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "refract"
-version = "1.5.2"
+name = "refractum"
+version = "1.6.0"
 description = "Simple GUI for ranking Arch Linux and distro-specific pacman mirrors"
 license = { text = "GPL-3.0-or-later" }
 requires-python = ">=3.11"
@@ -13,11 +13,11 @@ dependencies = [
 ]
 
 [project.scripts]
-refract = "refract.__main__:main"
-refract-rank = "refract.rank_info:main"
+refractum = "refractum.__main__:main"
+refractum-rank = "refractum.rank_info:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["refract"]
+packages = ["refractum"]
 
 [tool.ruff]
 line-length = 120

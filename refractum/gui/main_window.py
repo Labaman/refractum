@@ -53,9 +53,8 @@ class MainWindow(Gtk.ApplicationWindow):
         height: int = 750,
         on_result: Callable[[SelectionResult], None] | None = None,
     ) -> None:
-        super().__init__(application=app, title="refract — Select Arch mirrors")
+        super().__init__(application=app, title="refractum — Select Arch mirrors")
         self.set_default_size(width, height)
-        self.set_icon_name("refract")
 
         self._countries = countries
         self._local_code = local_code
@@ -384,7 +383,7 @@ class MainWindow(Gtk.ApplicationWindow):
         box.set_margin_top(8)
 
         global_btn = Gtk.Button(label="Save as global default")
-        global_btn.set_tooltip_text("Write current settings to /etc/refract.toml (requires root)")
+        global_btn.set_tooltip_text("Write current settings to /etc/refractum.toml (requires root)")
         global_btn.connect("clicked", self._on_save_global)
 
         spacer = Gtk.Box()
@@ -462,7 +461,7 @@ class MainWindow(Gtk.ApplicationWindow):
         opts = self._collect_options()
         try:
             save_global_config(opts)
-            self._show_toast("System defaults saved to /etc/refract.toml")
+            self._show_toast("System defaults saved to /etc/refractum.toml")
         except PermissionError:
             pass  # user cancelled pkexec — no error needed
         except Exception as exc:

@@ -1,7 +1,7 @@
 """
 Show up-to-date ranking information about mirrors in /etc/pacman.d/mirrorlist.
 
-Can be run as: refract-rank [--age|--rate]
+Can be run as: refractum-rank [--age|--rate]
 """
 
 from __future__ import annotations
@@ -165,7 +165,7 @@ def print_table(results: list[MirrorInfo]) -> None:
 
 def main(argv: list[str] | None = None) -> None:
     """
-    Usage: refract-rank [--age|--rate] [--help]
+    Usage: refractum-rank [--age|--rate] [--help]
     """
     if argv is None:
         argv = sys.argv[1:]
@@ -176,7 +176,7 @@ def main(argv: list[str] | None = None) -> None:
     if "--age" in argv:
         sort = "age"
     if "--help" in argv or "-h" in argv:
-        print("Usage: refract-rank [--age|--rate]")
+        print("Usage: refractum-rank [--age|--rate]")
         print("  --age   Sort by mirror age (default)")
         print("  --rate  Sort by download speed")
         return

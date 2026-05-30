@@ -1,8 +1,8 @@
 """
-Read and save refract's configuration in TOML format.
+Read and save refractum's configuration in TOML format.
 
-User config: ~/.config/refract/settings.toml  (written on every OK)
-System config: /etc/refract.toml              (written via pkexec)
+User config: ~/.config/refractum/settings.toml  (written on every OK)
+System config: /etc/refractum.toml              (written via pkexec)
 
 First-launch bootstrap (read-only, never written):
   /etc/reflector-simple.conf  — reflector-simple format (imported once, read-only)
@@ -22,9 +22,8 @@ from pathlib import Path
 from .models import ReflectorOptions
 
 
-USER_CONF = Path.home() / ".config" / "refract" / "settings.toml"
-_OLD_USER_CONF = Path.home() / ".config" / "refract" / "settings.conf"
-GLOBAL_CONF = Path("/etc/refract.toml")
+USER_CONF = Path.home() / ".config" / "refractum" / "settings.toml"
+GLOBAL_CONF = Path("/etc/refractum.toml")
 _REFLECTOR_SIMPLE_CONF = Path("/etc/reflector-simple.conf")
 _REFLECTOR_CONF = Path("/etc/xdg/reflector/reflector.conf")
 
@@ -34,19 +33,16 @@ def load_config(path: Path | None = None) -> ReflectorOptions | None:
     Load config and return ReflectorOptions, or None if no config exists.
 
     Search order when path is not given:
-      1. ~/.config/refract/settings.toml  (TOML)
-      2. ~/.config/refract/settings.conf  (legacy pre-1.5.0, migrated silently)
-      3. /etc/refract.toml                (TOML)
-      4. /etc/reflector-simple.conf       (reflector-simple format, imported once on first launch)
-      5. /etc/xdg/reflector/reflector.conf (reflector format, imported once on first launch)
+      1. ~/.config/refractum/settings.toml  (TOML)
+      2. /etc/refractum.toml                (TOML)
+      3. /etc/reflector-simple.conf         (reflector-simple format, imported once on first launch)
+      4. /etc/xdg/reflector/reflector.conf  (reflector format, imported once on first launch)
     """
     if path is not None:
         return _load_toml(path) if path.exists() else None
 
     if USER_CONF.exists():
         return _load_toml(USER_CONF)
-    if _OLD_USER_CONF.exists():
-        return _bootstrap_from_reflector(_OLD_USER_CONF)
     if GLOBAL_CONF.exists():
         return _load_toml(GLOBAL_CONF)
     for legacy in (_REFLECTOR_SIMPLE_CONF, _REFLECTOR_CONF):

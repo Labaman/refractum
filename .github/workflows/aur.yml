@@ -13,7 +13,7 @@ jobs:
       - name: Publish to AUR
         uses: KSXGitHub/github-actions-deploy-aur@v4.1.3
         with:
-          pkgname: refract
+          pkgname: refractum
           pkgbuild: ./PKGBUILD
           commit_username: ${{ vars.AUR_USERNAME }}
           commit_email: ${{ vars.AUR_EMAIL }}

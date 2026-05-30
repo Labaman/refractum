@@ -1,8 +1,8 @@
 [Desktop Entry]
-Name=Refract
+Name=Refractum
 Comment=Rank Arch Linux and distro-specific pacman mirrors
-Exec=refract
-Icon=refract
+Exec=refractum
+Icon=io.github.Labaman.refractum
 Terminal=false
 Type=Application
 Categories=System;Settings;

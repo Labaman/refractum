@@ -1,12 +1,14 @@
 # Maintainer: Mikhail <efklid@gmail.com>
 # shellcheck disable=SC2034,SC2154
-pkgname=refract
-pkgver=1.5.2
+pkgname=refractum
+pkgver=1.6.0
 pkgrel=1
 pkgdesc="GUI tool for ranking pacman mirrors on Arch Linux and Arch-based distributions"
 arch=('any')
-url="https://github.com/Labaman/refract"
+url="https://github.com/Labaman/refractum"
 license=('GPL-3.0-or-later')
+replaces=('refract')
+conflicts=('refract')
 depends=(
     'python'
     'python-requests'
@@ -22,8 +24,9 @@ makedepends=(
     'python-installer'
     'python-hatchling'
 )
-source=("$pkgname-$pkgver.tar.gz::https://github.com/Labaman/refract/archive/refs/tags/v$pkgver.tar.gz")
+source=("$pkgname-$pkgver.tar.gz::https://github.com/Labaman/refractum/archive/refs/tags/v$pkgver.tar.gz")
 sha256sums=('SKIP')
+install=refractum.install
 
 build() {
     cd "$pkgname-$pkgver" || return 1
@@ -34,6 +37,6 @@ package() {
     cd "$pkgname-$pkgver" || return 1
     python -m installer --destdir="$pkgdir" dist/*.whl
     install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
-    install -Dm644 refract.desktop "$pkgdir/usr/share/applications/refract.desktop"
-    install -Dm644 refract.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/refract.svg"
+    install -Dm644 io.github.Labaman.refractum.desktop "$pkgdir/usr/share/applications/io.github.Labaman.refractum.desktop"
+    install -Dm644 io.github.Labaman.refractum.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/io.github.Labaman.refractum.svg"
 }
