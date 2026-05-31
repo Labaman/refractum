@@ -25,9 +25,10 @@ from .distros import MirrorSet, fetch_mirrorlist, generate_mirrorlist
 # Speed test for a single URL
 # ---------------------------------------------------------------------------
 
-# Bytes to download per test. 500 KB gives a stable measurement for fast
-# mirrors (4+ MB/s) without wasting too much time on slow ones.
-_TEST_BYTES = 500_000
+# Bytes to download per test. 4 MB gets past the CDN burst zone —
+# extra.db (the Arch test file) is ~8.5 MB, so 500 KB only covered 6% of it
+# and measured burst speed rather than sustained throughput.
+_TEST_BYTES = 4_000_000
 
 # Chunk size for streaming. 64 KB reduces Python loop overhead vs 8 KB.
 _CHUNK_SIZE = 65536
@@ -38,6 +39,36 @@ _HEADERS = {"User-Agent": "pacman/6.1.0 libalpm/14.0.0"}
 # Alternative database filenames to try when the primary test file returns 404.
 # Pacman repos always ship at least one of these.
 _FALLBACK_DB_NAMES = ("extra.db", "core.db")
+
+
+def _measure_stream(resp: requests.Response, max_bytes: int) -> float | None:
+    """
+    Read up to `max_bytes` from an open streaming response and return its
+    download speed in bytes/second.
+
+    Timing starts only after the first chunk arrives, so TCP/TLS setup and
+    time-to-first-byte don't count against throughput.
+
+    Returns:
+        float > 0  — measured bytes/second
+        0.0        — data arrived but too little to measure reliably
+        None       — no data arrived at all
+    """
+    start: float | None = None
+    downloaded = 0
+    for chunk in resp.iter_content(chunk_size=_CHUNK_SIZE):
+        if start is None:
+            start = time.monotonic()
+        downloaded += len(chunk)
+        if downloaded >= max_bytes:
+            break
+
+    if start is None:
+        return None
+    elapsed = time.monotonic() - start
+    if elapsed > 0 and downloaded > 1024:
+        return downloaded / elapsed
+    return 0.0
 
 
 def test_mirror_speed(
@@ -66,28 +97,9 @@ def test_mirror_speed(
             if resp.status_code == 404:
                 return _check_fallback(url, timeout)
             resp.raise_for_status()
-            # Start timing after first chunk arrives — removes TTFB and
-            # connection overhead, measures pure download throughput only.
-            start: float | None = None
-            downloaded = 0
-            for chunk in resp.iter_content(chunk_size=_CHUNK_SIZE):
-                if start is None:
-                    start = time.monotonic()
-                downloaded += len(chunk)
-                if downloaded >= max_bytes:
-                    break
-
-        if start is None:
-            return None
-        elapsed = time.monotonic() - start
-        if elapsed > 0 and downloaded > 1024:
-            return downloaded / elapsed
-        return 0.0  # server responded but file too small to measure reliably
-
+            return _measure_stream(resp, max_bytes)
     except (requests.RequestException, OSError):
-        pass
-
-    return None
+        return None
 
 
 def _check_fallback(primary_url: str, timeout: float) -> float | None:
@@ -108,18 +120,9 @@ def _check_fallback(primary_url: str, timeout: float) -> float | None:
                 if r.status_code == 404:
                     continue
                 r.raise_for_status()
-                start: float | None = None
-                downloaded = 0
-                for chunk in r.iter_content(chunk_size=_CHUNK_SIZE):
-                    if start is None:
-                        start = time.monotonic()
-                    downloaded += len(chunk)
-                    if downloaded >= _TEST_BYTES:
-                        break
-            if start is not None:
-                elapsed = time.monotonic() - start
-                if elapsed > 0 and downloaded > 1024:
-                    return downloaded / elapsed
+                speed = _measure_stream(r, _TEST_BYTES)
+            if speed:  # not None and not 0.0 — a real measurement
+                return speed
         except (requests.RequestException, OSError):
             pass
 
