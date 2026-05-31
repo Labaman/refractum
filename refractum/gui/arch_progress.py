@@ -115,7 +115,7 @@ class ArchProgressWindow(Gtk.Window):
                 countries=list(selected_codes) if selected_codes else None,
                 protocols=opts.protocols or ["https"],
                 age_hours=opts.age,
-                use_latest=opts.number if opts.use_latest else None,
+                use_latest=opts.latest if opts.use_latest else None,
             )
         except Exception as exc:
             GLib.idle_add(self._on_error, str(exc))
@@ -151,8 +151,6 @@ class ArchProgressWindow(Gtk.Window):
             return
 
         # Rate sort: concurrent speed test
-        # HTTP/HTTPS mirrors: tested via requests (partial download)
-        # rsync mirrors: tested via rsync subprocess
         GLib.idle_add(self._status.set_text, f"Testing {len(mirrors)} mirrors…")
         max_workers = opts.threads or 5
         timeout = float(opts.download_timeout)

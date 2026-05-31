@@ -104,9 +104,11 @@ class MirrorlistPreviewWindow(Gtk.Window):
         bar.set_margin_top(8)
         bar.set_margin_bottom(8)
 
-        mirror_count = self._content.count("\nServer = ")
+        mirror_count = len(re.findall(r"^Server = ", self._content, re.MULTILINE))
         countries = re.findall(r"^## (.+)$", self._content, re.MULTILINE)
-        countries = [c.strip() for c in countries if not c.strip().startswith("Generated") and len(c.strip()) < 40]
+        countries = list(dict.fromkeys(
+            c.strip() for c in countries if not c.strip().startswith("Generated") and len(c.strip()) < 40
+        ))
 
         def _stat(label: str, value: str) -> Gtk.Box:
             box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)

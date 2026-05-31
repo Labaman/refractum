@@ -39,8 +39,9 @@ class ReflectorOptions:
     countries: list[str] = field(default_factory=list)  # ISO codes
     protocols: list[str] = field(default_factory=list)  # ["https", "http"]
     sort: str = "rate"
-    number: int = 10
-    use_latest: bool = False  # True = --latest N, False = --age N
+    number: int = 10  # final result count (--number)
+    use_latest: bool = False  # True = --latest N pool, False = --age N
+    latest: int = 30  # pool size for speed test when use_latest=True (--latest)
     age: int | None = None  # hours; None = omit
     download_timeout: int = 10
     threads: int | None = None

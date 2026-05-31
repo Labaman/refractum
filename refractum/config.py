@@ -103,6 +103,7 @@ def _load_toml(path: Path) -> ReflectorOptions | None:
     opts.sort = data.get("sort", "rate")
     opts.number = int(data.get("number", 10))
     opts.use_latest = bool(data.get("use_latest", False))
+    opts.latest = int(data.get("latest", 30))
     if "age" in data:
         opts.age = int(data["age"])
     opts.download_timeout = int(data.get("download_timeout", 10))
@@ -118,6 +119,7 @@ def _to_toml(opts: ReflectorOptions) -> str:
     lines.append(f'sort = "{opts.sort}"')
     lines.append(f"use_latest = {'true' if opts.use_latest else 'false'}")
     lines.append(f"number = {opts.number}")
+    lines.append(f"latest = {opts.latest}")
     if opts.age is not None:
         lines.append(f"age = {opts.age}")
     lines.append(f"download_timeout = {opts.download_timeout}")
@@ -160,10 +162,9 @@ def _bootstrap_from_reflector(path: Path) -> ReflectorOptions | None:
     opts.protocols = cfg.protocols or ["https"]
     opts.sort = cfg.sort or "rate"
     if cfg.latest:
-        opts.number = int(cfg.latest)
+        opts.latest = int(cfg.latest)
         opts.use_latest = True
-    else:
-        opts.number = int(cfg.number or 10)
+    opts.number = int(cfg.number or 10)
     if cfg.age:
         opts.age = int(cfg.age)
     if cfg.download_timeout:

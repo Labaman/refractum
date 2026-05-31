@@ -196,23 +196,35 @@ class MainWindow(Gtk.ApplicationWindow):
         freshness_box = Gtk.Box(spacing=12)
 
         self._radio_age = Gtk.CheckButton(label="Max age (h):")
-        self._radio_latest = Gtk.CheckButton(label="Latest synced")
+        self._radio_latest = Gtk.CheckButton(label="Latest synced:")
         self._radio_latest.set_group(self._radio_age)  # mutual exclusion
 
         adj_age = Gtk.Adjustment(value=self._defaults.age or 24, lower=1, upper=8760, step_increment=1)
         self._age_spin = Gtk.SpinButton(adjustment=adj_age, climb_rate=1, digits=0)
         self._age_spin.set_width_chars(6)
 
+        adj_latest = Gtk.Adjustment(value=self._defaults.latest, lower=1, upper=500, step_increment=5)
+        self._latest_spin = Gtk.SpinButton(adjustment=adj_latest, climb_rate=1, digits=0)
+        self._latest_spin.set_width_chars(6)
+
         use_latest = self._defaults.use_latest
         self._radio_age.set_active(not use_latest)
         self._radio_latest.set_active(use_latest)
         self._age_spin.set_sensitive(not use_latest)
+        self._latest_spin.set_sensitive(use_latest)
 
-        self._radio_age.connect("toggled", lambda btn: self._age_spin.set_sensitive(btn.get_active()))
+        def _on_recency_toggled(btn: Gtk.CheckButton) -> None:
+            age_mode = btn is self._radio_age and btn.get_active()
+            self._age_spin.set_sensitive(age_mode)
+            self._latest_spin.set_sensitive(not age_mode)
+
+        self._radio_age.connect("toggled", _on_recency_toggled)
+        self._radio_latest.connect("toggled", _on_recency_toggled)
 
         freshness_box.append(self._radio_age)
         freshness_box.append(self._age_spin)
         freshness_box.append(self._radio_latest)
+        freshness_box.append(self._latest_spin)
         grid.attach(freshness_box, 1, row, 3, 1)
         row += 1
 
@@ -422,6 +434,7 @@ class MainWindow(Gtk.ApplicationWindow):
             protocols=protocols,
             sort=self._sort_combo.get_active_text() or "rate",
             use_latest=use_latest,
+            latest=int(self._latest_spin.get_value()),
             age=None if use_latest else int(self._age_spin.get_value()),
             number=int(self._number_spin.get_value()),
             download_timeout=int(self._timeout_spin.get_value()),
