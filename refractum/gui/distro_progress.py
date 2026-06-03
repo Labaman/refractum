@@ -163,11 +163,23 @@ class DistroProgressWindow(Gtk.Window):
 
     def start(self) -> None:
         """Launch one worker thread per PRIMARY MirrorSet.
-        Derived sets are handled automatically after their primary finishes."""
+        Derived sets are handled automatically after their primary finishes.
+        Waits for map signal if the window isn't allocated yet."""
+        if self.get_mapped():
+            self._start_workers()
+        else:
+            hid = None
+
+            def _on_map(_win):
+                self.disconnect(hid)
+                self._start_workers()
+
+            hid = self.connect("map", _on_map)
+
+    def _start_workers(self) -> None:
         for ms in self._sets:
             if not ms.primary_id:
-                t = threading.Thread(target=self._worker, args=(ms,), daemon=True)
-                t.start()
+                threading.Thread(target=self._worker, args=(ms,), daemon=True).start()
 
     # ------------------------------------------------------------------
     # Worker: speed-test a primary set

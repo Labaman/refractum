@@ -99,8 +99,18 @@ class ArchProgressWindow(Gtk.Window):
     # ------------------------------------------------------------------
 
     def start(self) -> None:
-        """Spawn the worker thread. Call after present()."""
-        threading.Thread(target=self._worker, daemon=True).start()
+        """Spawn the worker thread. Waits for map signal if the window isn't
+        allocated yet — prevents GtkGizmo snapshot-without-allocation warnings."""
+        if self.get_mapped():
+            threading.Thread(target=self._worker, daemon=True).start()
+        else:
+            hid = None
+
+            def _on_map(_win):
+                self.disconnect(hid)
+                threading.Thread(target=self._worker, daemon=True).start()
+
+            hid = self.connect("map", _on_map)
 
     # ------------------------------------------------------------------
     # Worker thread

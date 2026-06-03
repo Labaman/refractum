@@ -41,7 +41,7 @@ _HEADERS = {"User-Agent": "pacman/6.1.0 libalpm/14.0.0"}
 _FALLBACK_DB_NAMES = ("extra.db", "core.db")
 
 
-def _measure_stream(resp: requests.Response, max_bytes: int) -> float | None:
+def _measure_stream(resp: requests.Response, max_bytes: int, max_time: float | None = None) -> float | None:
     """
     Read up to `max_bytes` from an open streaming response and return its
     download speed in bytes/second.
@@ -49,18 +49,25 @@ def _measure_stream(resp: requests.Response, max_bytes: int) -> float | None:
     Timing starts only after the first chunk arrives, so TCP/TLS setup and
     time-to-first-byte don't count against throughput.
 
+    `max_time` is a wall-clock cap on total streaming time. It stops mirrors
+    that trickle data slowly — requests' socket timeout fires only when no
+    bytes arrive, but a slow-but-steady mirror never triggers it.
+
     Returns:
         float > 0  — measured bytes/second
         0.0        — data arrived but too little to measure reliably
         None       — no data arrived at all
     """
     start: float | None = None
+    wall_start = time.monotonic()
     downloaded = 0
     for chunk in resp.iter_content(chunk_size=_CHUNK_SIZE):
         if start is None:
             start = time.monotonic()
         downloaded += len(chunk)
         if downloaded >= max_bytes:
+            break
+        if max_time is not None and time.monotonic() - wall_start > max_time:
             break
 
     if start is None:
@@ -97,7 +104,7 @@ def test_mirror_speed(
             if resp.status_code == 404:
                 return _check_fallback(url, timeout)
             resp.raise_for_status()
-            return _measure_stream(resp, max_bytes)
+            return _measure_stream(resp, max_bytes, max_time=timeout)
     except (requests.RequestException, OSError):
         return None
 
@@ -120,7 +127,7 @@ def _check_fallback(primary_url: str, timeout: float) -> float | None:
                 if r.status_code == 404:
                     continue
                 r.raise_for_status()
-                speed = _measure_stream(r, _TEST_BYTES)
+                speed = _measure_stream(r, _TEST_BYTES, max_time=timeout)
             if speed:  # not None and not 0.0 — a real measurement
                 return speed
         except (requests.RequestException, OSError):
