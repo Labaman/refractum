@@ -45,3 +45,4 @@ class ReflectorOptions:
     age: int | None = None  # hours; None = omit
     download_timeout: int = 10
     threads: int | None = None
+    distro_sets: list[str] | None = None  # None = not yet saved; [] = user saved empty selection

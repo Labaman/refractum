@@ -182,12 +182,11 @@ class MainWindow(Gtk.ApplicationWindow):
 
         # Sort
         grid.attach(Gtk.Label(label="Sort by:", xalign=0), 0, row, 1, 1)
-        self._sort_combo = Gtk.ComboBoxText()
-        sort_opts = ["rate", "age", "country", "score", "delay"]
-        for opt in sort_opts:
-            self._sort_combo.append_text(opt)
+        _SORT_OPTS = ["rate", "age", "country", "score", "delay"]
+        self._sort_opts = _SORT_OPTS
+        self._sort_combo = Gtk.DropDown.new_from_strings(_SORT_OPTS)
         current = self._defaults.sort or "rate"
-        self._sort_combo.set_active(sort_opts.index(current) if current in sort_opts else 0)
+        self._sort_combo.set_selected(_SORT_OPTS.index(current) if current in _SORT_OPTS else 0)
         grid.attach(self._sort_combo, 1, row, 1, 1)
         row += 1
 
@@ -330,7 +329,12 @@ class MainWindow(Gtk.ApplicationWindow):
                 row_box.set_margin_bottom(6)
 
                 cb = Gtk.CheckButton()
-                cb.set_active(is_installed and ms.id == auto_id)
+                if self._defaults.distro_sets is not None:
+                    # Restore saved selection
+                    cb.set_active(is_installed and ms.id in self._defaults.distro_sets)
+                else:
+                    # First launch: auto-select distro match + all installed repos
+                    cb.set_active(is_installed and (ms.id == auto_id or ms.is_repo))
                 cb.set_sensitive(is_installed)
                 self._distro_checks[ms.id] = cb
 
@@ -432,7 +436,7 @@ class MainWindow(Gtk.ApplicationWindow):
         return ReflectorOptions(
             countries=selected_codes,
             protocols=protocols,
-            sort=self._sort_combo.get_active_text() or "rate",
+            sort=self._sort_opts[idx] if (idx := self._sort_combo.get_selected()) < len(self._sort_opts) else "rate",
             use_latest=use_latest,
             latest=int(self._latest_spin.get_value()),
             age=None if use_latest else int(self._age_spin.get_value()),
@@ -443,7 +447,6 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _on_ok(self, _: Gtk.Button) -> None:
         opts = self._collect_options()
-        save_user_config(opts)
 
         # Distro sets: start with checked primaries, then append their derived sets.
         all_installed = installed_mirror_sets()
@@ -454,10 +457,12 @@ class MainWindow(Gtk.ApplicationWindow):
             cb = self._distro_checks.get(ms.id)
             if cb and cb.get_active():
                 selected_distros.append(ms)
-                # Include derived sets (v3/v4 etc.) automatically
                 for derived in all_installed:
                     if derived.primary_id == ms.id:
                         selected_distros.append(derived)
+
+        opts.distro_sets = [ms.id for ms in selected_distros if not ms.primary_id]
+        save_user_config(opts)
 
         result = SelectionResult(
             options=opts,

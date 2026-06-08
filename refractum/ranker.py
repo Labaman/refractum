@@ -2,15 +2,15 @@
 Speed-based mirror ranker.
 
 Downloads a small portion of a test file from each mirror and measures
-throughput in bytes/second. Uses a thread pool so all mirrors are tested
-concurrently — the total time is roughly equal to the slowest mirror's
-test time rather than the sum of all times.
+throughput in bytes/second. Mirrors are tested concurrently so the total
+time is roughly equal to the slowest mirror's test time.
 
 This is the approach used by rate-mirrors and eos-rankmirrors.
 """
 
 from __future__ import annotations
 
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
@@ -168,6 +168,7 @@ def rank_mirror_set(
     protocols: list[str] | None = None,
     max_results: int | None = None,
     on_progress: Callable[[RankResult], None] | None = None,
+    cancel: threading.Event | None = None,
 ) -> list[RankResult]:
     """
     Test every mirror in `templates` concurrently and return results sorted
@@ -210,6 +211,9 @@ def rank_mirror_set(
         future_to_job = {pool.submit(test_mirror_speed, test_url, timeout): (tmpl, test_url) for tmpl, test_url in jobs}
 
         for future in as_completed(future_to_job):
+            if cancel is not None and cancel.is_set():
+                pool.shutdown(wait=False, cancel_futures=True)
+                break
             tmpl, test_url = future_to_job[future]
             try:
                 speed = future.result()

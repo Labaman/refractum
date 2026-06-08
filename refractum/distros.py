@@ -83,6 +83,8 @@ _COMMENTED_SERVER_RE = re.compile(r"^#\s*Server\s*=\s*(.+)$")
 # Matches section headers: "## Germany" or "## USA Mirror much thanks to…" etc.
 _SECTION_HEADER_RE = re.compile(r"^##\s+(.{2,60})$")
 _CODE_RE = re.compile(r"\bcode=([A-Za-z]{2})\b")
+# Matches single-hash country markers: "# Russia (RU)" — used by Chaotic-AUR mirrorlist.
+_SINGLE_HASH_COUNTRY_RE = re.compile(r"^#\s+(.{2,50})\s+\(([A-Z]{2})\)\s*$")
 
 
 def parse_mirrorlist(text: str, include_commented: bool = True) -> list[str]:
@@ -163,6 +165,14 @@ def _filter_servers_by_countries(
                 in_match = cm.group(1).upper() in upper_codes
             else:
                 in_match = any(name in header for name in lower_names)
+            continue
+
+        # Single-hash country marker: "# Russia (RU)" — Chaotic-AUR format.
+        # Must be checked before the in_match guard so it can flip in_match.
+        m2 = _SINGLE_HASH_COUNTRY_RE.match(s)
+        if m2:
+            found_any_section = True
+            in_match = (m2.group(2).upper() in upper_codes) or any(name in m2.group(1).lower() for name in lower_names)
             continue
 
         if not in_match:

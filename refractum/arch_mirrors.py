@@ -116,7 +116,7 @@ def _parse_mirrors(data: dict) -> list[ArchMirror]:
 # ---------------------------------------------------------------------------
 
 
-def get_countries() -> list:
+def get_countries() -> list[Country]:
     """
     Return sorted Country list from Arch mirror status JSON.
 

@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.6.2] — 2026-06-08
+
+### Added
+- Indeterminate progress bar animation while the mirror list is being fetched
+- Closing a ranking window mid-test now shows a confirmation dialog; confirming
+  cancels the test and exits immediately without hanging
+
+### Fixed
+- Slow mirrors no longer stall ranking indefinitely — a wall-clock cap now
+  limits total download time per mirror regardless of trickle speed (the
+  socket timeout only fires when no bytes arrive, not on total elapsed time)
+- App no longer hangs on exit after cancelling ranking — worker threads are
+  now daemon threads and are killed immediately when the process exits
+- Chaotic-AUR country filter: single-hash `# Country (XX)` section markers
+  are now recognized; previously any country selection returned 0 mirrors
+- Third-party repo checkboxes (e.g. Chaotic-AUR) are now auto-detected and
+  pre-selected on first launch; the selection is persisted across launches
+- Unchecking all repos is now remembered — an empty saved selection was
+  previously treated as "not yet saved" and reset to auto-select on next launch
+- Rapid double close-request no longer spawns two confirmation dialogs
+- Pulse animation correctly stops in all exit paths of the Arch ranking window
+
+### Changed
+- Sort dropdown replaced deprecated `Gtk.ComboBoxText` with `Gtk.DropDown`
+
 ## [1.6.1] — 2026-05-31
 
 ### Fixed

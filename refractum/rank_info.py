@@ -173,8 +173,6 @@ def main(argv: list[str] | None = None) -> None:
     sort = "age"
     if "--rate" in argv:
         sort = "rate"
-    if "--age" in argv:
-        sort = "age"
     if "--help" in argv or "-h" in argv:
         print("Usage: refractum-rank [--age|--rate]")
         print("  --age   Sort by mirror age (default)")

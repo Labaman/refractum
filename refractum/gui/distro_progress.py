@@ -68,11 +68,14 @@ class DistroProgressWindow(Gtk.Window):
         self._results: dict[str, list[RankResult]] = {ms.id: [] for ms in mirror_sets}
         self._finished: set[str] = set()
         self._total_mirrors: dict[str, int] = {}
+        self._cancelled = False
+        self._closing = False
+        self._cancel_event = threading.Event()
 
         # Quick lookup by id
         self._set_by_id: dict[str, MirrorSet] = {ms.id: ms for ms in mirror_sets}
 
-        self.connect("close-request", self._block_close_during_ranking)
+        self.connect("close-request", self._on_close_request)
         self._build_ui()
 
     # ------------------------------------------------------------------
@@ -217,7 +220,8 @@ class DistroProgressWindow(Gtk.Window):
                     for t in templates
                 ]
                 self._total_mirrors[ms.id] = len(results)
-                GLib.idle_add(self._on_set_done, ms.id, results)
+                if not self._cancelled:
+                    GLib.idle_add(self._on_set_done, ms.id, results)
                 return
 
             # Normal speed-test path
@@ -230,7 +234,8 @@ class DistroProgressWindow(Gtk.Window):
             GLib.idle_add(self._set_pb_text, ms.id, f"Testing {len(templates)} mirrors…")
 
             def progress_cb(result: RankResult) -> None:
-                GLib.idle_add(self._on_mirror_result, ms.id, result)
+                if not self._cancelled:
+                    GLib.idle_add(self._on_mirror_result, ms.id, result)
 
             results = rank_mirror_set(
                 ms,
@@ -240,7 +245,11 @@ class DistroProgressWindow(Gtk.Window):
                 protocols=self._protocols,
                 max_results=self._max_results,
                 on_progress=progress_cb,
+                cancel=self._cancel_event,
             )
+
+            if self._cancelled:
+                return
 
             # rank_mirror_set has no country awareness; populate from country_map here.
             for r in results:
@@ -479,5 +488,29 @@ class DistroProgressWindow(Gtk.Window):
             self._on_done()
         self.close()
 
-    def _block_close_during_ranking(self, _: Gtk.Window) -> bool:
-        return len(self._finished) < len(self._sets)
+    def _on_close_request(self, _: Gtk.Window) -> bool:
+        if self._cancelled or len(self._finished) >= len(self._sets):
+            return False
+        if self._closing:
+            return True
+        self._closing = True
+        dialog = Gtk.AlertDialog()
+        dialog.set_message("Cancel mirror ranking?")
+        dialog.set_detail("Testing is still in progress. Results will be discarded.")
+        dialog.set_buttons(["Continue", "Cancel ranking"])
+        dialog.set_cancel_button(0)
+        dialog.set_default_button(0)
+
+        def _on_response(src, result):
+            self._closing = False
+            try:
+                idx = dialog.choose_finish(result)
+            except Exception:
+                return
+            if idx == 1:
+                self._cancelled = True
+                self._cancel_event.set()
+                self.close()
+
+        dialog.choose(self, None, _on_response)
+        return True

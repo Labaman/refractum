@@ -109,6 +109,7 @@ def _load_toml(path: Path) -> ReflectorOptions | None:
     opts.download_timeout = int(data.get("download_timeout", 10))
     if "threads" in data:
         opts.threads = int(data["threads"])
+    opts.distro_sets = data.get("distro_sets", None)
     return opts
 
 
@@ -125,6 +126,8 @@ def _to_toml(opts: ReflectorOptions) -> str:
     lines.append(f"download_timeout = {opts.download_timeout}")
     if opts.threads is not None:
         lines.append(f"threads = {opts.threads}")
+    if opts.distro_sets is not None:
+        lines.append(f"distro_sets = {_toml_list(opts.distro_sets)}")
     return "\n".join(lines) + "\n"
 
 

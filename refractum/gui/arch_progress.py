@@ -12,10 +12,10 @@ Sort modes:
 
 from __future__ import annotations
 
+import queue
 import threading
 import traceback
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import gi
 
@@ -52,6 +52,9 @@ class ArchProgressWindow(Gtk.Window):
         self._results: list[tuple[RankResult, ArchMirror]] = []
         self._total = 0
         self._done = False
+        self._cancelled = False
+        self._closing = False
+        self._pulse_timer: int | None = None
 
         self.connect("close-request", self._on_close_request)
         self._build_ui()
@@ -101,14 +104,19 @@ class ArchProgressWindow(Gtk.Window):
     def start(self) -> None:
         """Spawn the worker thread. Waits for map signal if the window isn't
         allocated yet — prevents GtkGizmo snapshot-without-allocation warnings."""
-        if self.get_mapped():
+
+        def _begin() -> None:
+            self._pulse_timer = GLib.timeout_add(80, self._pulse_progress)
             threading.Thread(target=self._worker, daemon=True).start()
+
+        if self.get_mapped():
+            _begin()
         else:
             hid = None
 
             def _on_map(_win):
                 self.disconnect(hid)
-                threading.Thread(target=self._worker, daemon=True).start()
+                _begin()
 
             hid = self.connect("map", _on_map)
 
@@ -160,41 +168,71 @@ class ArchProgressWindow(Gtk.Window):
             GLib.idle_add(self._on_all_done)
             return
 
-        # Rate sort: concurrent speed test
+        # Rate sort: daemon thread pool + result queue.
+        # ThreadPoolExecutor uses non-daemon threads that Python joins at exit,
+        # causing a hang after window close. Daemon threads are killed immediately
+        # when the process exits — no atexit blocking.
         GLib.idle_add(self._status.set_text, f"Testing {len(mirrors)} mirrors…")
         max_workers = opts.threads or 5
         timeout = float(opts.download_timeout)
 
-        def _speed_fn(m: ArchMirror) -> float | None:
-            return test_mirror_speed(m.make_test_url(), timeout)
+        work_q: queue.Queue = queue.Queue()
+        result_q: queue.Queue = queue.Queue()
+        _sentinel = object()
+
+        def _pool_worker() -> None:
+            while True:
+                item = work_q.get()
+                if item is _sentinel:
+                    return
+                m: ArchMirror = item
+                speed = None if self._cancelled else test_mirror_speed(m.make_test_url(), timeout)
+                result_q.put((m, speed))
+
+        for m in mirrors:
+            work_q.put(m)
+        for _ in range(max_workers):
+            work_q.put(_sentinel)
+            threading.Thread(target=_pool_worker, daemon=True).start()
 
         try:
-            with ThreadPoolExecutor(max_workers=max_workers) as pool:
-                future_to_mirror = {pool.submit(_speed_fn, m): m for m in mirrors}
-                for future in as_completed(future_to_mirror):
-                    m = future_to_mirror[future]
-                    try:
-                        speed = future.result()
-                    except Exception:
-                        speed = None
-                    r = RankResult(
-                        template=m.server_template,
-                        test_url=m.make_test_url(),
-                        speed=speed or 0.0,
-                        reachable=speed is not None,
-                        country=m.country_code,
-                    )
-                    GLib.idle_add(self._on_mirror_result, r, m)
+            received = 0
+            total = len(mirrors)
+            while received < total and not self._cancelled:
+                try:
+                    m, speed = result_q.get(timeout=0.1)
+                except queue.Empty:
+                    continue
+                received += 1
+                r = RankResult(
+                    template=m.server_template,
+                    test_url=m.make_test_url(),
+                    speed=speed or 0.0,
+                    reachable=speed is not None,
+                    country=m.country_code,
+                )
+                GLib.idle_add(self._on_mirror_result, r, m)
         except Exception:
             traceback.print_exc()
 
-        GLib.idle_add(self._on_all_done)
+        if not self._cancelled:
+            GLib.idle_add(self._on_all_done)
 
     # ------------------------------------------------------------------
     # UI update callbacks (GTK main thread)
     # ------------------------------------------------------------------
 
+    def _pulse_progress(self) -> bool:
+        self._progress.pulse()
+        return True
+
+    def _stop_pulse(self) -> None:
+        if self._pulse_timer is not None:
+            GLib.source_remove(self._pulse_timer)
+            self._pulse_timer = None
+
     def _on_mirror_result(self, result: RankResult, mirror: ArchMirror) -> bool:
+        self._stop_pulse()
         self._results.append((result, mirror))
         done = len(self._results)
         total = max(1, self._total)
@@ -238,6 +276,7 @@ class ArchProgressWindow(Gtk.Window):
         self._list_box.append(row)
 
     def _on_all_done(self) -> bool:
+        self._stop_pulse()
         self._done = True
         self._progress.set_fraction(1.0)
 
@@ -267,6 +306,7 @@ class ArchProgressWindow(Gtk.Window):
         return False
 
     def _on_no_mirrors(self) -> bool:
+        self._stop_pulse()
         self._done = True
         self._status.set_text("No mirrors found.")
         self._progress.set_fraction(1.0)
@@ -276,6 +316,7 @@ class ArchProgressWindow(Gtk.Window):
         return False
 
     def _on_error(self, message: str) -> bool:
+        self._stop_pulse()
         self._done = True
         self._status.set_text(f"Error: {message}")
         self._progress.set_fraction(1.0)
@@ -296,5 +337,28 @@ class ArchProgressWindow(Gtk.Window):
         self.close()
 
     def _on_close_request(self, _: Gtk.Window) -> bool:
-        """Block close while ranking is in progress."""
-        return not self._done
+        if self._done or self._cancelled:
+            return False
+        if self._closing:
+            return True
+        self._closing = True
+        dialog = Gtk.AlertDialog()
+        dialog.set_message("Cancel mirror ranking?")
+        dialog.set_detail("Testing is still in progress. Results will be discarded.")
+        dialog.set_buttons(["Continue", "Cancel ranking"])
+        dialog.set_cancel_button(0)
+        dialog.set_default_button(0)
+
+        def _on_response(src, result):
+            self._closing = False
+            try:
+                idx = dialog.choose_finish(result)
+            except Exception:
+                return
+            if idx == 1:
+                self._cancelled = True
+                self._stop_pulse()
+                self.close()
+
+        dialog.choose(self, None, _on_response)
+        return True
