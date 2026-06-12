@@ -110,6 +110,7 @@ def _load_toml(path: Path) -> ReflectorOptions | None:
     if "threads" in data:
         opts.threads = int(data["threads"])
     opts.distro_sets = data.get("distro_sets", None)
+    opts.distro_ww_fallback = bool(data.get("distro_ww_fallback", False))
     return opts
 
 
@@ -128,6 +129,7 @@ def _to_toml(opts: ReflectorOptions) -> str:
         lines.append(f"threads = {opts.threads}")
     if opts.distro_sets is not None:
         lines.append(f"distro_sets = {_toml_list(opts.distro_sets)}")
+    lines.append(f"distro_ww_fallback = {'true' if opts.distro_ww_fallback else 'false'}")
     return "\n".join(lines) + "\n"
 
 

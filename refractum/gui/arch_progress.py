@@ -186,7 +186,10 @@ class ArchProgressWindow(Gtk.Window):
                 if item is _sentinel:
                     return
                 m: ArchMirror = item
-                speed = None if self._cancelled else test_mirror_speed(m.make_test_url(), timeout)
+                try:
+                    speed = None if self._cancelled else test_mirror_speed(m.make_test_url(), timeout)
+                except Exception:
+                    speed = None
                 result_q.put((m, speed))
 
         for m in mirrors:

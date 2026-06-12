@@ -85,6 +85,9 @@ _SECTION_HEADER_RE = re.compile(r"^##\s+(.{2,60})$")
 _CODE_RE = re.compile(r"\bcode=([A-Za-z]{2})\b")
 # Matches single-hash country markers: "# Russia (RU)" — used by Chaotic-AUR mirrorlist.
 _SINGLE_HASH_COUNTRY_RE = re.compile(r"^#\s+(.{2,50})\s+\(([A-Z]{2})\)\s*$")
+# Matches plain Title-Case country names: "# Germany", "# Czech Republic" — Artix/BlackArch format.
+# Each word must start with uppercase — rejects lines like "# Default mirrors" or "# Use rankmirrors(1)…".
+_PLAIN_COUNTRY_RE = re.compile(r"^#\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*$")
 
 
 def parse_mirrorlist(text: str, include_commented: bool = True) -> list[str]:
@@ -113,7 +116,7 @@ def parse_mirrorlist(text: str, include_commented: bool = True) -> list[str]:
 
 # Words in headers that are never country names
 _SKIP_WORDS = frozenset(
-    ("server", "generated", "mirrorlist", "disabled", "enabled", "rerouted", "deprecated", "note", "todo", "cachyos")
+    ("server", "generated", "mirrorlist", "disabled", "enabled", "rerouted", "deprecated", "note", "todo", "cachyos", "global")
 )
 
 
@@ -173,6 +176,13 @@ def _filter_servers_by_countries(
         if m2:
             found_any_section = True
             in_match = (m2.group(2).upper() in upper_codes) or any(name in m2.group(1).lower() for name in lower_names)
+            continue
+
+        # Plain Title-Case country name: "# Germany" — Artix/BlackArch format (no ISO code).
+        m3 = _PLAIN_COUNTRY_RE.match(s)
+        if m3:
+            found_any_section = True
+            in_match = any(name in m3.group(1).lower() for name in lower_names)
             continue
 
         if not in_match:
@@ -242,9 +252,11 @@ def fetch_mirrorlist(
         if effective_countries or country_codes:
             filtered = _filter_servers_by_countries(text, effective_countries, include_commented, country_codes)
             if filtered is not None:
-                # Sections exist: return only matching mirrors (may be empty — no fallback)
-                return filtered
-            # filtered is None: no section headers; fall back to all
+                if filtered:
+                    return filtered
+                # Sections exist but no country match — fall back to all mirrors.
+                # Caller (derived worker) handles an empty-set gracefully already,
+                # but returning all is more correct and avoids silent empty results.
 
     return parse_mirrorlist(text, include_commented=include_commented)
 
@@ -280,6 +292,18 @@ def get_template_countries(text: str, include_commented: bool = True) -> dict[st
             #       → keep current_country unchanged
             continue
 
+        # Single-hash country marker: "# Russia (RU)" — Chaotic-AUR format.
+        m2 = _SINGLE_HASH_COUNTRY_RE.match(s)
+        if m2:
+            current_country = m2.group(2).upper()
+            continue
+
+        # Plain Title-Case country name: "# Germany" — Artix/BlackArch format.
+        m3 = _PLAIN_COUNTRY_RE.match(s)
+        if m3:
+            current_country = m3.group(1).strip()
+            continue
+
         if s.startswith("Server = "):
             result[s[9:]] = current_country
         elif include_commented:
@@ -295,9 +319,14 @@ def fetch_mirrorlist_with_countries(
     timeout: int = 15,
     country_names: set[str] | None = None,
     country_codes: set[str] | None = None,
-) -> tuple[list[str], dict[str, str]]:
+) -> tuple[list[str], dict[str, str], bool]:
     """
-    Like fetch_mirrorlist but also returns a {template: country} mapping.
+    Like fetch_mirrorlist but also returns a {template: country} mapping and a
+    worldwide-fallback flag.
+
+    The flag is True when country filtering was requested but no mirrors in the
+    selected countries were found — all available mirrors are returned instead
+    so the caller can notify the user rather than silently show an empty list.
 
     Uses _fetch_mirrorlist_text once (single HTTP request) and passes the
     same raw text to both the country-filter logic and get_template_countries,
@@ -306,7 +335,7 @@ def fetch_mirrorlist_with_countries(
     # One HTTP call via the shared helper — result used twice below
     raw = _fetch_mirrorlist_text(ms, timeout)
     if raw is None:
-        return [], {}
+        return [], {}, False
     text, include_commented = raw
 
     # Build country map from the full upstream text (before any filtering),
@@ -319,10 +348,13 @@ def fetch_mirrorlist_with_countries(
         if effective_countries or country_codes:
             filtered = _filter_servers_by_countries(text, effective_countries, include_commented, country_codes)
             if filtered is not None:
-                return filtered, country_map
-            # filtered is None: no section headers; fall back to all
+                if filtered:
+                    return filtered, country_map, False
+                # Sections exist but no country match — visible fallback to all mirrors.
+                return parse_mirrorlist(text, include_commented=include_commented), country_map, True
+            # filtered is None: no section headers; fall back to all (not a notable event)
 
-    return parse_mirrorlist(text, include_commented=include_commented), country_map
+    return parse_mirrorlist(text, include_commented=include_commented), country_map, False
 
 
 # ---------------------------------------------------------------------------
@@ -461,9 +493,8 @@ ALL_MIRROR_SETS: list[MirrorSet] = [
         test_arch="x86_64",
         test_db="arch4edu.db",
         is_repo=True,
-        # Mirrorlist has country sections (China, Germany, etc.) but no Russian mirrors;
-        # returning all mirrors on any country selection is more practical for a small repo.
-        country_filter_supported=False,
+        # Mirrorlist has ## Country sections (China, Austria, France, Germany).
+        # ## Global CDN section is excluded from filtering via _SKIP_WORDS.
     ),
 ]
 

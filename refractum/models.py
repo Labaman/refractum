@@ -20,9 +20,6 @@ class Country:
     code: str  # two-letter ISO, e.g. "DE"
     count: int  # number of available mirrors
 
-    def __str__(self) -> str:
-        return f"{self.name} ({self.code})"
-
 
 WORLDWIDE = Country(name="Worldwide", code="WW", count=0)
 
@@ -46,3 +43,4 @@ class ReflectorOptions:
     download_timeout: int = 10
     threads: int | None = None
     distro_sets: list[str] | None = None  # None = not yet saved; [] = user saved empty selection
+    distro_ww_fallback: bool = False  # auto-use all mirrors when none match selected countries

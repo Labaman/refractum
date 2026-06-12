@@ -1,5 +1,45 @@
 # Changelog
 
+## [1.6.3] — 2026-06-12
+
+### Added
+- **Worldwide fallback** option for distro mirrors — when no mirrors are found in
+  the selected countries, the app can fall back to all worldwide mirrors:
+  - *Auto mode* (new "Worldwide fallback" checkbox in distro options): silently uses
+    all mirrors and shows a persistent warning bar in the ranking window
+  - *Manual mode* (default): shows a one-time confirmation dialog with a "Set as
+    default" checkbox to switch to auto mode permanently
+  - Setting is saved to user config and restored on next launch
+
+### Fixed
+- Plain Title-Case country headers (`# Germany`, `# Czech Republic`) now recognized
+  in Artix and BlackArch mirrorlists — previously only `## Germany (DE)` and
+  `# Germany (DE)` formats were parsed, causing country filtering to silently return
+  all mirrors for those repos
+- Single-hash (`# Russia (RU)`) and plain-name (`# Germany`) section headers are
+  now also recognized by `get_template_countries`, so country labels in ranked
+  results are correct for Artix, BlackArch, and Chaotic-AUR
+- arch4edu country filter re-enabled — it was disabled as a workaround for a
+  parser limitation that is now fixed
+- Country filtering no longer silently returns an empty list when sections exist but
+  the selected country is absent — the fallback path notifies the user instead of
+  producing zero results without explanation
+- Ranking window no longer freezes when a pool worker thread throws an unexpected
+  exception — the collector loop would previously spin forever waiting for a result
+  that was never put on the queue; any exception is now caught and the mirror is
+  recorded as unreachable
+- WM close (Alt+F4 / compositor X) on the worldwide-fallback dialog now releases
+  waiting workers — previously this left `_fallback_proceed` unset and all pending
+  workers deadlocked
+- Cancelling distro ranking while a mirrorlist fetch is in flight no longer produces
+  a zombie fallback dialog after the fetch completes
+- Cancelling distro ranking now immediately unblocks workers that were waiting for
+  the fallback dialog instead of leaving them blocked until the next 0.5 s poll
+
+### Removed
+- Dead `Country.__str__` method (no callers; `.name` and `.code` were always
+  accessed directly)
+
 ## [1.6.2] — 2026-06-08
 
 ### Added

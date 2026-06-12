@@ -120,6 +120,7 @@ def _handle_main_result(app, result, countries) -> None:
             # Inherits the same sort method from the Arch tab.
             # "country" takes the fast path (no speed test, alphabetical by country).
             sort_by=result.options.sort,
+            ww_fallback_auto=result.options.distro_ww_fallback,
             on_done=lambda: _start_arch_ranking(app, result),
         )
         distro_win.present()

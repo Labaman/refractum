@@ -375,6 +375,14 @@ class MainWindow(Gtk.ApplicationWindow):
         self._workers_spin.set_width_chars(6)
         opts_grid.attach(self._workers_spin, 1, 0, 1, 1)
 
+        self._ww_fallback_cb = Gtk.CheckButton(label="Worldwide fallback")
+        self._ww_fallback_cb.set_active(self._defaults.distro_ww_fallback)
+        self._ww_fallback_cb.set_tooltip_text(
+            "On: silently use all worldwide mirrors when none are found in the selected countries.\n"
+            "Off: ask before falling back."
+        )
+        opts_grid.attach(self._ww_fallback_cb, 0, 1, 3, 1)
+
         opts_grid.attach(
             Gtk.Label(
                 label="Timeout and max mirrors are taken from the Arch mirrors tab.",
@@ -382,7 +390,7 @@ class MainWindow(Gtk.ApplicationWindow):
                 css_classes=["dim-label"],
             ),
             0,
-            1,
+            2,
             3,
             1,
         )
@@ -461,6 +469,7 @@ class MainWindow(Gtk.ApplicationWindow):
                     if derived.primary_id == ms.id:
                         selected_distros.append(derived)
 
+        opts.distro_ww_fallback = self._ww_fallback_cb.get_active()
         opts.distro_sets = [ms.id for ms in selected_distros if not ms.primary_id]
         save_user_config(opts)
 
