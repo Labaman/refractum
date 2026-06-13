@@ -143,7 +143,7 @@ class ArchProgressWindow(Gtk.Window):
             GLib.idle_add(self._on_no_mirrors)
             return
 
-        self._total = len(mirrors)
+        GLib.idle_add(self._set_total, len(mirrors))
         sort_by = opts.sort
 
         # Metadata-only sorts: no downloads, near-instant
@@ -153,7 +153,6 @@ class ArchProgressWindow(Gtk.Window):
                 (
                     RankResult(
                         template=m.server_template,
-                        test_url=m.make_test_url(),
                         speed=0.0,
                         reachable=True,
                         country=m.country_code,
@@ -162,16 +161,16 @@ class ArchProgressWindow(Gtk.Window):
                 )
                 for m in sorted_mirrors
             ]
-            self._total = len(results)
+            GLib.idle_add(self._set_total, len(results))
             for r, m in results:
                 GLib.idle_add(self._on_mirror_result, r, m)
             GLib.idle_add(self._on_all_done)
             return
 
         # Rate sort: daemon thread pool + result queue.
-        # ThreadPoolExecutor uses non-daemon threads that Python joins at exit,
-        # causing a hang after window close. Daemon threads are killed immediately
-        # when the process exits — no atexit blocking.
+        # A plain ThreadPoolExecutor (with-block) blocks in __exit__ until all futures
+        # complete — that would hang here if the user closes the window mid-test.
+        # Daemon threads are killed when the process exits without any blocking.
         GLib.idle_add(self._status.set_text, f"Testing {len(mirrors)} mirrors…")
         max_workers = opts.threads or 5
         timeout = float(opts.download_timeout)
@@ -209,7 +208,6 @@ class ArchProgressWindow(Gtk.Window):
                 received += 1
                 r = RankResult(
                     template=m.server_template,
-                    test_url=m.make_test_url(),
                     speed=speed or 0.0,
                     reachable=speed is not None,
                     country=m.country_code,
@@ -233,6 +231,10 @@ class ArchProgressWindow(Gtk.Window):
         if self._pulse_timer is not None:
             GLib.source_remove(self._pulse_timer)
             self._pulse_timer = None
+
+    def _set_total(self, total: int) -> bool:
+        self._total = total
+        return False
 
     def _on_mirror_result(self, result: RankResult, mirror: ArchMirror) -> bool:
         self._stop_pulse()
@@ -361,7 +363,10 @@ class ArchProgressWindow(Gtk.Window):
             if idx == 1:
                 self._cancelled = True
                 self._stop_pulse()
-                self.close()
+                if self._done:
+                    self._finish(None)
+                else:
+                    self.close()
 
         dialog.choose(self, None, _on_response)
         return True

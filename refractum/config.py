@@ -14,6 +14,7 @@ from __future__ import annotations
 import re
 import shlex
 import subprocess
+import sys
 import tempfile
 import tomllib
 from dataclasses import dataclass, field
@@ -94,7 +95,8 @@ def _load_toml(path: Path) -> ReflectorOptions | None:
     try:
         with open(path, "rb") as f:
             data = tomllib.load(f)
-    except Exception:
+    except Exception as exc:
+        print(f"Warning: failed to read {path}: {exc}", file=sys.stderr)
         return None
 
     opts = ReflectorOptions()

@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.6.4] — 2026-06-13
+
+### Fixed
+- Cancel button in distro ranking window now correctly triggers the next step
+  (Arch mirror ranking) instead of silently closing the application
+- "Save as global default" now also saves the "Worldwide fallback" checkbox state
+- Cancelling Arch ranking via the dialog no longer loses results when ranking
+  completes between the X-click and the cancel confirmation
+- `_load_toml` now prints a warning to stderr instead of silently swallowing
+  broken `settings.toml` parse errors
+
+### Removed
+- `RankResult.test_url` field — was populated in all constructors but never read
+- `MirrorlistPreviewWindow._finish_saved()` trivial wrapper — inlined as `self.close()`
+- Duplicate `MIRRORLIST_PATH` constant in `rank_info.py` — now imported from `mirrorlist.py`
+
+### Changed
+- `self._total` in `ArchProgressWindow` is now set via `GLib.idle_add` to avoid a
+  minor cross-thread write from the worker thread
+- Fixed misleading comment about `ThreadPoolExecutor` daemon threads in `arch_progress.py`
+
 ## [1.6.3] — 2026-06-12
 
 ### Added

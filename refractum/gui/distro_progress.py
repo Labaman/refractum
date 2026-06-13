@@ -235,7 +235,7 @@ class DistroProgressWindow(Gtk.Window):
                 GLib.idle_add(self._on_all_prefetched)
 
         if not fetch_ok:
-            GLib.idle_add(self._set_pb_text, ms.id, f"Error: failed to fetch mirror list.")
+            GLib.idle_add(self._set_pb_text, ms.id, "Error: failed to fetch mirror list.")
             GLib.idle_add(self._on_set_done, ms.id, [])
             return
 
@@ -265,7 +265,6 @@ class DistroProgressWindow(Gtk.Window):
                 results = [
                     RankResult(
                         template=t,
-                        test_url=ms.make_test_url(t),
                         speed=0.0,
                         reachable=True,
                         country=country_map.get(t, ""),
@@ -354,7 +353,6 @@ class DistroProgressWindow(Gtk.Window):
                 derived_results.append(
                     RankResult(
                         template=derived_tmpl,
-                        test_url=derived_ms.make_test_url(derived_tmpl),
                         speed=r.speed,
                         reachable=r.reachable,
                     )
@@ -389,8 +387,7 @@ class DistroProgressWindow(Gtk.Window):
         if self._cancelled:
             return False
         fallback_sets = [
-            ms for ms in self._sets
-            if not ms.primary_id and self._prefetch_results.get(ms.id, ([], {}, False))[2]
+            ms for ms in self._sets if not ms.primary_id and self._prefetch_results.get(ms.id, ([], {}, False))[2]
         ]
 
         if not fallback_sets:
@@ -412,6 +409,7 @@ class DistroProgressWindow(Gtk.Window):
                 if set_default:
                     from ..config import load_config, save_user_config
                     from ..models import ReflectorOptions
+
                     opts = load_config() or ReflectorOptions()
                     opts.distro_ww_fallback = True
                     save_user_config(opts)
@@ -491,8 +489,7 @@ class DistroProgressWindow(Gtk.Window):
     def _show_ww_fallback_notice(self, names: list[str]) -> bool:
         """Show (or update) the persistent warning bar for worldwide-fallback repos."""
         self._fallback_label.set_text(
-            f"No mirrors in selected countries for: {', '.join(names)}"
-            " — all worldwide mirrors used instead."
+            f"No mirrors in selected countries for: {', '.join(names)} — all worldwide mirrors used instead."
         )
         self._fallback_bar.set_revealed(True)
         return False
@@ -683,7 +680,7 @@ class DistroProgressWindow(Gtk.Window):
                 self._cancelled = True
                 self._cancel_event.set()
                 self._fallback_proceed.set()  # unblock any workers waiting for dialog
-                self.close()
+                self._finish()
 
         dialog.choose(self, None, _on_response)
         return True

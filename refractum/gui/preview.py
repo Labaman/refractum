@@ -340,14 +340,11 @@ class MirrorlistPreviewWindow(Gtk.Window):
                 dialog.choose_finish(result)
             except Exception:
                 pass
-            self._finish_saved()
+            self.close()
 
         dialog.choose(self, None, _on_response)
 
     def _on_discard_clicked(self, _: Gtk.Button) -> None:
-        self.close()
-
-    def _finish_saved(self) -> None:
         self.close()
 
     def _show_error(self, message: str) -> None:

@@ -14,7 +14,8 @@ from pathlib import Path
 
 import requests
 
-MIRRORLIST_PATH = Path("/etc/pacman.d/mirrorlist")
+from .mirrorlist import MIRRORLIST_PATH
+
 LASTUPDATE_FILE = "lastupdate"
 
 

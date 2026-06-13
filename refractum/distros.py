@@ -116,7 +116,19 @@ def parse_mirrorlist(text: str, include_commented: bool = True) -> list[str]:
 
 # Words in headers that are never country names
 _SKIP_WORDS = frozenset(
-    ("server", "generated", "mirrorlist", "disabled", "enabled", "rerouted", "deprecated", "note", "todo", "cachyos", "global")
+    (
+        "server",
+        "generated",
+        "mirrorlist",
+        "disabled",
+        "enabled",
+        "rerouted",
+        "deprecated",
+        "note",
+        "todo",
+        "cachyos",
+        "global",
+    )  # noqa: E501
 )
 
 
@@ -254,9 +266,8 @@ def fetch_mirrorlist(
             if filtered is not None:
                 if filtered:
                     return filtered
-                # Sections exist but no country match — fall back to all mirrors.
-                # Caller (derived worker) handles an empty-set gracefully already,
-                # but returning all is more correct and avoids silent empty results.
+                # Sections found but no country match — fall back to all mirrors
+                # so derived-set workers still have a list to filter against.
 
     return parse_mirrorlist(text, include_commented=include_commented)
 

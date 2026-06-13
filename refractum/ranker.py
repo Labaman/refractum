@@ -154,7 +154,6 @@ class RankResult:
     """Result for one mirror."""
 
     template: str  # the Server = … URL template
-    test_url: str  # the actual URL that was fetched
     speed: float  # bytes/second, 0.0 if unreachable
     reachable: bool
     country: str = ""  # ISO-2 code or header text; populated by DistroProgressWindow
@@ -196,25 +195,19 @@ def rank_mirror_set(
     if not templates:
         return []
 
-    # Build (template → test_url) mapping, deduplicated
-    seen: set[str] = set()
-    jobs: list[tuple[str, str]] = []
-    for tmpl in templates:
-        if tmpl not in seen:
-            seen.add(tmpl)
-            jobs.append((tmpl, ms.make_test_url(tmpl)))
-
     results: list[RankResult] = []
 
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         # Dict maps Future → template so we can look it up when the future completes
-        future_to_job = {pool.submit(test_mirror_speed, test_url, timeout): (tmpl, test_url) for tmpl, test_url in jobs}
+        future_to_tmpl = {
+            pool.submit(test_mirror_speed, ms.make_test_url(tmpl), timeout): tmpl for tmpl in dict.fromkeys(templates)
+        }
 
-        for future in as_completed(future_to_job):
+        for future in as_completed(future_to_tmpl):
             if cancel is not None and cancel.is_set():
                 pool.shutdown(wait=False, cancel_futures=True)
                 break
-            tmpl, test_url = future_to_job[future]
+            tmpl = future_to_tmpl[future]
             try:
                 speed = future.result()
             except Exception:
@@ -222,7 +215,6 @@ def rank_mirror_set(
 
             r = RankResult(
                 template=tmpl,
-                test_url=test_url,
                 speed=speed or 0.0,
                 reachable=speed is not None,
             )

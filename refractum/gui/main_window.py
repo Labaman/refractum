@@ -486,6 +486,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _on_save_global(self, _: Gtk.Button) -> None:
         opts = self._collect_options()
+        opts.distro_ww_fallback = self._ww_fallback_cb.get_active()
         try:
             save_global_config(opts)
             self._show_toast("System defaults saved to /etc/refractum.toml")
