@@ -18,10 +18,9 @@ class Country:
 
     name: str
     code: str  # two-letter ISO, e.g. "DE"
-    count: int  # number of available mirrors
 
 
-WORLDWIDE = Country(name="Worldwide", code="WW", count=0)
+WORLDWIDE = Country(name="Worldwide", code="WW")
 
 
 # ---------------------------------------------------------------------------

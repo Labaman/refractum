@@ -12,20 +12,20 @@ Sort modes:
 
 from __future__ import annotations
 
+import queue
 import threading
 import traceback
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections.abc import Callable
 
 import gi
 
 gi.require_version("Gtk", "4.0")
-gi.require_version("Pango", "1.0")
-from gi.repository import Gtk, GLib, Pango  # noqa: E402
+from gi.repository import Gtk, GLib  # noqa: E402
 
 from ..arch_mirrors import ArchMirror, fetch_mirrors, sort_no_test, format_mirrorlist
 from ..ranker import RankResult, test_mirror_speed
 from ..models import ReflectorOptions
+from .widgets import defer_until_mapped, make_rank_result_row, show_cancel_dialog
 
 
 class ArchProgressWindow(Gtk.Window):
@@ -103,23 +103,13 @@ class ArchProgressWindow(Gtk.Window):
     # ------------------------------------------------------------------
 
     def start(self) -> None:
-        """Spawn the worker thread. Waits for map signal if the window isn't
-        allocated yet — prevents GtkGizmo snapshot-without-allocation warnings."""
+        """Spawn the worker thread, deferring until the window is mapped if needed."""
 
         def _begin() -> None:
             self._pulse_timer = GLib.timeout_add(80, self._pulse_progress)
             threading.Thread(target=self._worker, daemon=True).start()
 
-        if self.get_mapped():
-            _begin()
-        else:
-            hid = None
-
-            def _on_map(_win):
-                self.disconnect(hid)
-                _begin()
-
-            hid = self.connect("map", _on_map)
+        defer_until_mapped(self, _begin)
 
     # ------------------------------------------------------------------
     # Worker thread
@@ -172,32 +162,56 @@ class ArchProgressWindow(Gtk.Window):
             GLib.idle_add(self._on_all_done)
             return
 
-        # Rate sort: concurrent speed test.
-        # Manual pool (no with-block) so shutdown(wait=False) on cancel returns
-        # immediately without blocking until in-flight requests finish.
+        # Rate sort: plain daemon threads rather than ThreadPoolExecutor.
+        # TPE registers an atexit handler that joins all pool threads on process
+        # exit — if in-flight requests are still blocked when the user cancels,
+        # the process hangs until download_timeout expires. Daemon threads are
+        # killed immediately when the process exits, so there is no hang.
         GLib.idle_add(self._status.set_text, f"Testing {len(mirrors)} mirrors…")
         max_workers = opts.threads or 5
         timeout = float(opts.download_timeout)
 
-        # Deduplicate by server_template (mirrors with the same URL would submit
-        # redundant requests and the second future would silently overwrite the first
-        # in the dict comprehension).
+        # Deduplicate by server_template before dispatching.
         unique_mirrors = list({m.server_template: m for m in mirrors}.values())
 
-        pool = ThreadPoolExecutor(max_workers=max_workers)
-        future_to_mirror = {pool.submit(test_mirror_speed, m.make_test_url(), timeout): m for m in unique_mirrors}
-        cancelled_mid_run = False
-        try:
-            for future in as_completed(future_to_mirror):
-                if cancel.is_set():
-                    pool.shutdown(wait=False, cancel_futures=True)
-                    cancelled_mid_run = True
-                    break
-                m = future_to_mirror[future]
+        work_q: queue.SimpleQueue[ArchMirror | object] = queue.SimpleQueue()
+        result_q: queue.SimpleQueue[tuple[ArchMirror, float | None]] = queue.SimpleQueue()
+        _sentinel = object()
+
+        def _test_worker() -> None:
+            while True:
+                item = work_q.get()
+                if item is _sentinel:
+                    return
+                m: ArchMirror = item  # type: ignore[assignment]
                 try:
-                    speed = future.result()
+                    speed = test_mirror_speed(m.make_test_url(), timeout)
                 except Exception:
                     speed = None
+                result_q.put((m, speed))
+
+        for m in unique_mirrors:
+            work_q.put(m)
+        for _ in range(max_workers):
+            work_q.put(_sentinel)
+            threading.Thread(target=_test_worker, daemon=True).start()
+
+        cancelled_mid_run = False
+        received = 0
+        total = len(unique_mirrors)
+        try:
+            while received < total:
+                try:
+                    m, speed = result_q.get(timeout=0.1)  # type: ignore[assignment]
+                except queue.Empty:
+                    if cancel.is_set():
+                        cancelled_mid_run = True
+                        break
+                    continue
+                received += 1
+                if cancel.is_set():
+                    cancelled_mid_run = True
+                    break
                 r = RankResult(
                     template=m.server_template,
                     speed=speed or 0.0,
@@ -207,10 +221,7 @@ class ArchProgressWindow(Gtk.Window):
                 GLib.idle_add(self._on_mirror_result, r, m)
         except Exception:
             traceback.print_exc()
-            pool.shutdown(wait=False, cancel_futures=True)
             cancelled_mid_run = True
-        finally:
-            pool.shutdown(wait=False)
 
         if not cancelled_mid_run:
             GLib.idle_add(self._on_all_done)
@@ -243,38 +254,7 @@ class ArchProgressWindow(Gtk.Window):
         return False
 
     def _append_row(self, result: RankResult, mirror: ArchMirror) -> None:
-        row = Gtk.ListBoxRow()
-        box = Gtk.Box(spacing=12)
-        box.set_margin_start(6)
-        box.set_margin_end(6)
-        box.set_margin_top(2)
-        box.set_margin_bottom(2)
-
-        if result.reachable and result.speed > 0:
-            speed_mb = result.speed / (1024 * 1024)
-            speed_lbl = Gtk.Label(label=f"{speed_mb:6.2f} MB/s", xalign=1, width_chars=12)
-            speed_lbl.add_css_class("success" if speed_mb > 1.0 else "warning")
-        elif result.reachable:
-            # sort_by != "rate": speed=0 means not tested, not slow
-            speed_lbl = Gtk.Label(label="—", xalign=1, width_chars=12)
-            speed_lbl.add_css_class("dim-label")
-        else:
-            speed_lbl = Gtk.Label(label="unreachable", xalign=1, width_chars=12)
-            speed_lbl.add_css_class("error")
-
-        # Country code label — hidden when unknown
-        country_lbl = Gtk.Label(label=mirror.country_code, xalign=0, width_chars=4)
-        country_lbl.add_css_class("dim-label")
-        country_lbl.set_visible(bool(mirror.country_code))
-
-        url_lbl = Gtk.Label(label=result.template, xalign=0, hexpand=True)
-        url_lbl.set_ellipsize(Pango.EllipsizeMode.END)
-
-        box.append(speed_lbl)
-        box.append(country_lbl)
-        box.append(url_lbl)
-        row.set_child(box)
-        self._list_box.append(row)
+        self._list_box.append(make_rank_result_row(result, mirror.country_code))
 
     def _on_all_done(self) -> bool:
         self._stop_pulse()
@@ -343,27 +323,15 @@ class ArchProgressWindow(Gtk.Window):
         if self._closing:
             return True
         self._closing = True
-        dialog = Gtk.AlertDialog()
-        dialog.set_message("Cancel mirror ranking?")
-        dialog.set_detail("Testing is still in progress. Results will be discarded.")
-        dialog.set_buttons(["Continue", "Cancel ranking"])
-        dialog.set_cancel_button(0)
-        dialog.set_default_button(0)
 
-        def _on_response(src, result):
-            self._closing = False
-            try:
-                idx = dialog.choose_finish(result)
-            except Exception:
-                return
-            if idx == 1:
-                self._cancelled = True
-                self._cancel_event.set()
-                self._stop_pulse()
-                if self._done:
-                    self._finish(None)
-                else:
-                    self.close()
+        def _confirm() -> None:
+            self._cancelled = True
+            self._cancel_event.set()
+            self._stop_pulse()
+            if self._done:
+                self._finish(None)
+            else:
+                self.close()
 
-        dialog.choose(self, None, _on_response)
+        show_cancel_dialog(self, on_dismiss=lambda: setattr(self, "_closing", False), on_confirm=_confirm)
         return True

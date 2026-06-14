@@ -6,6 +6,7 @@ Can be run as: refractum-rank [--age|--rate]
 
 from __future__ import annotations
 
+import platform
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -15,6 +16,7 @@ from pathlib import Path
 import requests
 
 from .mirrorlist import MIRRORLIST_PATH
+from .ranker import test_mirror_speed
 
 LASTUPDATE_FILE = "lastupdate"
 
@@ -28,7 +30,7 @@ LASTUPDATE_FILE = "lastupdate"
 class MirrorInfo:
     url: str
     age_seconds: int
-    fetch_time: float  # seconds
+    speed: float | None  # bytes/sec from throughput test; None if not measured
 
 
 # ---------------------------------------------------------------------------
@@ -56,9 +58,9 @@ def read_mirrors(path: Path = MIRRORLIST_PATH) -> list[str]:
     return servers
 
 
-def check_mirror(url: str, now: float) -> MirrorInfo | None:
+def check_mirror_age(url: str, now: float) -> MirrorInfo | None:
     """
-    Fetch `url/lastupdate` and return age + fetch time.
+    Fetch `url/lastupdate` and return mirror age.
 
     The `lastupdate` file contains a Unix timestamp (integer string).
     Age = now - timestamp.
@@ -68,18 +70,27 @@ def check_mirror(url: str, now: float) -> MirrorInfo | None:
     target = f"{url}/{LASTUPDATE_FILE}"
     try:
         response = requests.get(target, timeout=10)
-        elapsed = response.elapsed.total_seconds()
-
         if response.status_code >= 400:
             return None
-
-        timestamp_str = response.text.strip()
-        timestamp = int(timestamp_str)
+        timestamp = int(response.text.strip())
         age = int(now - timestamp)
-        return MirrorInfo(url=f"{url}/$repo/os/$arch", age_seconds=age, fetch_time=elapsed)
-
+        return MirrorInfo(url=f"{url}/$repo/os/$arch", age_seconds=age, speed=None)
     except (requests.RequestException, ValueError):
         return None
+
+
+def check_mirror_speed(url: str) -> MirrorInfo | None:
+    """
+    Measure sustained download throughput using the same 4 MB test as the GUI.
+
+    Returns None if the mirror is unreachable.
+    """
+    arch = platform.machine()
+    test_url = f"{url}/extra/os/{arch}/extra.db"
+    speed = test_mirror_speed(test_url, timeout=10.0)
+    if speed is None:
+        return None
+    return MirrorInfo(url=f"{url}/$repo/os/$arch", age_seconds=0, speed=speed)
 
 
 def rank_mirrors(
@@ -95,14 +106,19 @@ def rank_mirrors(
         sort:        "age" or "rate"
         max_workers: number of concurrent threads
     """
-    now = time.time()
     results: list[MirrorInfo] = []
     failed: list[str] = []
     total = len(mirrors)
     done = 0
 
+    now = time.time()
+
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        future_to_url = {pool.submit(check_mirror, url, now): url for url in mirrors}
+        if sort == "age":
+            future_to_url = {pool.submit(check_mirror_age, url, now): url for url in mirrors}
+        else:
+            future_to_url = {pool.submit(check_mirror_speed, url): url for url in mirrors}
+
         for future in as_completed(future_to_url):
             url = future_to_url[future]
             done += 1
@@ -118,9 +134,9 @@ def rank_mirrors(
         print(f"  Warning: {url} failed", file=sys.stderr)
 
     if sort == "rate":
-        results.sort(key=lambda m: (m.fetch_time, m.age_seconds))
+        results.sort(key=lambda m: -(m.speed or 0.0))
     else:
-        results.sort(key=lambda m: (m.age_seconds, m.fetch_time))
+        results.sort(key=lambda m: m.age_seconds)
 
     return results
 
@@ -139,24 +155,30 @@ def format_age(seconds: int) -> str:
     return f"{seconds // 86400}d {(seconds % 86400) // 3600}h"
 
 
-def print_table(results: list[MirrorInfo]) -> None:
+def print_table(results: list[MirrorInfo], sort: str = "age") -> None:
     """Print results as a neatly aligned table."""
     if not results:
         print("No reachable mirrors found.")
         return
 
-    # Determine column widths dynamically
     url_width = max(len(m.url) for m in results)
     url_width = max(url_width, len("Mirror"))
 
-    header = f"{'Mirror':<{url_width}}  {'Age':>10}  {'Rate (s)':>10}"
-    separator = f"{'~' * url_width}  {'~' * 10}  {'~' * 10}"
-
-    print(header)
-    print(separator)
-    for m in results:
-        age_str = format_age(m.age_seconds)
-        print(f"{m.url:<{url_width}}  {age_str:>10}  {m.fetch_time:>10.3f}")
+    if sort == "rate":
+        header = f"{'Mirror':<{url_width}}  {'Speed':>12}"
+        separator = f"{'~' * url_width}  {'~' * 12}"
+        print(header)
+        print(separator)
+        for m in results:
+            speed_str = f"{(m.speed or 0.0) / (1024 * 1024):6.2f} MB/s" if m.speed else "unreachable"
+            print(f"{m.url:<{url_width}}  {speed_str:>12}")
+    else:
+        header = f"{'Mirror':<{url_width}}  {'Age':>10}"
+        separator = f"{'~' * url_width}  {'~' * 10}"
+        print(header)
+        print(separator)
+        for m in results:
+            print(f"{m.url:<{url_width}}  {format_age(m.age_seconds):>10}")
 
 
 # ---------------------------------------------------------------------------
@@ -177,7 +199,7 @@ def main(argv: list[str] | None = None) -> None:
     if "--help" in argv or "-h" in argv:
         print("Usage: refractum-rank [--age|--rate]")
         print("  --age   Sort by mirror age (default)")
-        print("  --rate  Sort by download speed")
+        print("  --rate  Sort by download speed (4 MB throughput test)")
         return
 
     if not MIRRORLIST_PATH.exists():
@@ -192,7 +214,7 @@ def main(argv: list[str] | None = None) -> None:
     print(f"Checking {len(mirrors)} mirrors from {MIRRORLIST_PATH}…", file=sys.stderr)
     results = rank_mirrors(mirrors, sort=sort)
     print(f"Sorted by {sort}.\n", file=sys.stderr)
-    print_table(results)
+    print_table(results, sort=sort)
 
 
 if __name__ == "__main__":

@@ -130,18 +130,17 @@ def get_countries() -> list[Country]:
     except requests.RequestException as exc:
         raise RuntimeError(f"Cannot fetch mirror list: {exc}") from exc
 
-    seen: dict[str, tuple[str, int]] = {}
+    seen: dict[str, str] = {}
     for m in data.get("urls", []):
         code = m.get("country_code", "").strip()
         name = m.get("country", "").strip()
         if code and name:
-            prev = seen.get(code, (name, 0))
-            seen[code] = (prev[0], prev[1] + 1)
+            seen.setdefault(code, name)
 
     if not seen:
         raise RuntimeError("Mirror status JSON returned no countries")
 
-    countries = [Country(name=name, code=code, count=count) for code, (name, count) in seen.items()]
+    countries = [Country(name=name, code=code) for code, name in seen.items()]
     return [WORLDWIDE] + sorted(countries, key=lambda c: _sort_key(c.name))
 
 

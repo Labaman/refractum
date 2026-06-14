@@ -22,12 +22,12 @@ from pathlib import Path
 import gi
 
 gi.require_version("Gtk", "4.0")
-gi.require_version("Pango", "1.0")
-from gi.repository import Gtk, GLib, Pango  # noqa: E402
+from gi.repository import Gtk, GLib  # noqa: E402
 
 from ..distros import MirrorSet
 from ..ranker import RankResult, rank_mirror_set, ranked_to_mirrorlist
 from ..mirrorlist import save_mirrorlist_batch
+from .widgets import defer_until_mapped, make_rank_result_row, show_cancel_dialog
 
 
 class DistroProgressWindow(Gtk.Window):
@@ -183,19 +183,8 @@ class DistroProgressWindow(Gtk.Window):
     # ------------------------------------------------------------------
 
     def start(self) -> None:
-        """Launch one worker thread per PRIMARY MirrorSet.
-        Derived sets are handled automatically after their primary finishes.
-        Waits for map signal if the window isn't allocated yet."""
-        if self.get_mapped():
-            self._start_workers()
-        else:
-            hid = None
-
-            def _on_map(_win):
-                self.disconnect(hid)
-                self._start_workers()
-
-            hid = self.connect("map", _on_map)
+        """Launch one worker thread per PRIMARY MirrorSet, deferring until mapped if needed."""
+        defer_until_mapped(self, self._start_workers)
 
     def _start_workers(self) -> None:
         primaries = [ms for ms in self._sets if not ms.primary_id]
@@ -236,7 +225,8 @@ class DistroProgressWindow(Gtk.Window):
 
         if not fetch_ok:
             GLib.idle_add(self._set_pb_text, ms.id, "Error: failed to fetch mirror list.")
-            GLib.idle_add(self._on_set_done, ms.id, [])
+            if not self._cancelled:
+                GLib.idle_add(self._on_set_done, ms.id, [])
             return
 
         # ── Phase 2: wait for fallback decision (if needed) ──────────────
@@ -249,7 +239,8 @@ class DistroProgressWindow(Gtk.Window):
                 return
             if ms.id in self._fallback_skip_ids:
                 GLib.idle_add(self._set_pb_text, ms.id, "Skipped — no mirrors in selected countries.")
-                GLib.idle_add(self._on_set_done, ms.id, [])
+                if not self._cancelled:
+                    GLib.idle_add(self._on_set_done, ms.id, [])
                 return
 
         # ── Phase 3: sort or speed-test ───────────────────────────────────
@@ -279,7 +270,8 @@ class DistroProgressWindow(Gtk.Window):
             # Normal speed-test path
             if not templates:
                 GLib.idle_add(self._set_pb_text, ms.id, "No mirrors found.")
-                GLib.idle_add(self._on_set_done, ms.id, [])
+                if not self._cancelled:
+                    GLib.idle_add(self._on_set_done, ms.id, [])
                 return
 
             self._total_mirrors[ms.id] = len(templates)
@@ -315,7 +307,8 @@ class DistroProgressWindow(Gtk.Window):
         except Exception:
             traceback.print_exc()
             GLib.idle_add(self._set_pb_text, ms.id, f"Error: {traceback.format_exc().splitlines()[-1]}")
-            GLib.idle_add(self._on_set_done, ms.id, [])
+            if not self._cancelled:
+                GLib.idle_add(self._on_set_done, ms.id, [])
 
     # ------------------------------------------------------------------
     # Worker: derive a dependent set from its primary's results
@@ -335,6 +328,9 @@ class DistroProgressWindow(Gtk.Window):
         """
         from ..distros import fetch_mirrorlist
 
+        if self._cancelled:
+            return
+
         try:
             GLib.idle_add(self._set_pb_text, derived_ms.id, f"Deriving from {primary_ms.display_name}…")
 
@@ -343,6 +339,9 @@ class DistroProgressWindow(Gtk.Window):
                 derived_ms, country_names=self._country_names, country_codes=self._country_codes
             )
             derived_set = set(derived_all)
+
+            if self._cancelled:
+                return
 
             derived_results: list[RankResult] = []
             for r in primary_results:
@@ -363,12 +362,14 @@ class DistroProgressWindow(Gtk.Window):
                 bad = [r for r in derived_results if not r.reachable]
                 derived_results = ok[: self._max_results] + bad
 
-            GLib.idle_add(self._on_set_done, derived_ms.id, derived_results)
+            if not self._cancelled:
+                GLib.idle_add(self._on_set_done, derived_ms.id, derived_results)
 
         except Exception:
             traceback.print_exc()
             GLib.idle_add(self._set_pb_text, derived_ms.id, f"Error: {traceback.format_exc().splitlines()[-1]}")
-            GLib.idle_add(self._on_set_done, derived_ms.id, [])
+            if not self._cancelled:
+                GLib.idle_add(self._on_set_done, derived_ms.id, [])
 
     # ------------------------------------------------------------------
     # UI update callbacks (GTK main thread)
@@ -512,39 +513,7 @@ class DistroProgressWindow(Gtk.Window):
         return False
 
     def _append_result_row(self, lb: Gtk.ListBox, result: RankResult) -> None:
-        row = Gtk.ListBoxRow()
-        row_box = Gtk.Box(spacing=12)
-        row_box.set_margin_start(6)
-        row_box.set_margin_end(6)
-        row_box.set_margin_top(2)
-        row_box.set_margin_bottom(2)
-
-        if result.reachable and result.speed > 0:
-            speed_mb = result.speed / (1024 * 1024)
-            speed_label = Gtk.Label(label=f"{speed_mb:6.2f} MB/s", xalign=1, width_chars=12)
-            speed_label.add_css_class("success" if speed_mb > 1.0 else "warning")
-        elif result.reachable:
-            # sort_by=country: speed=0 means "not tested", not "slow"
-            is_country = self._sort_by == "country"
-            speed_label = Gtk.Label(label="—" if is_country else "up (no data)", xalign=1, width_chars=12)
-            speed_label.add_css_class("dim-label" if is_country else "warning")
-        else:
-            speed_label = Gtk.Label(label="unreachable", xalign=1, width_chars=12)
-            speed_label.add_css_class("error")
-
-        # Country label — hidden when unknown
-        country_label = Gtk.Label(label=result.country, xalign=0, width_chars=4)
-        country_label.add_css_class("dim-label")
-        country_label.set_visible(bool(result.country))
-
-        url_label = Gtk.Label(label=result.template, xalign=0, hexpand=True)
-        url_label.set_ellipsize(Pango.EllipsizeMode.END)
-
-        row_box.append(speed_label)
-        row_box.append(country_label)
-        row_box.append(url_label)
-        row.set_child(row_box)
-        lb.append(row)
+        lb.append(make_rank_result_row(result, result.country, show_no_data=(self._sort_by != "country")))
 
     def _update_overall_progress(self) -> None:
         total_done = sum(len(v) for v in self._results.values())
@@ -554,6 +523,8 @@ class DistroProgressWindow(Gtk.Window):
             self._overall_status.set_text(f"{total_done}/{total_all} mirrors tested")
 
     def _on_set_done(self, set_id: str, results: list[RankResult]) -> bool:
+        if self._cancelled:
+            return False
         self._finished.add(set_id)
         self._results[set_id] = results
 
@@ -582,7 +553,7 @@ class DistroProgressWindow(Gtk.Window):
         # If this is a primary, kick off derivation for its dependent sets
         if ms and not ms.primary_id:
             for derived_ms in self._sets:
-                if derived_ms.primary_id == set_id:
+                if derived_ms.primary_id == set_id and not self._cancelled:
                     t = threading.Thread(
                         target=self._derive_worker,
                         args=(ms, derived_ms, results),
@@ -607,7 +578,8 @@ class DistroProgressWindow(Gtk.Window):
         close_btn.connect("clicked", lambda _: self._finish())
         self._btn_box.append(close_btn)
 
-    def _on_save_all(self, _: Gtk.Button) -> None:
+    def _on_save_all(self, btn: Gtk.Button) -> None:
+        btn.set_sensitive(False)
         errors: list[str] = []
         skipped: list[str] = []
         files_to_save: list[tuple[str, Path]] = []
@@ -663,24 +635,12 @@ class DistroProgressWindow(Gtk.Window):
         if self._closing:
             return True
         self._closing = True
-        dialog = Gtk.AlertDialog()
-        dialog.set_message("Cancel mirror ranking?")
-        dialog.set_detail("Testing is still in progress. Results will be discarded.")
-        dialog.set_buttons(["Continue", "Cancel ranking"])
-        dialog.set_cancel_button(0)
-        dialog.set_default_button(0)
 
-        def _on_response(src, result):
-            self._closing = False
-            try:
-                idx = dialog.choose_finish(result)
-            except Exception:
-                return
-            if idx == 1:
-                self._cancelled = True
-                self._cancel_event.set()
-                self._fallback_proceed.set()  # unblock any workers waiting for dialog
-                self._finish()
+        def _confirm() -> None:
+            self._cancelled = True
+            self._cancel_event.set()
+            self._fallback_proceed.set()  # unblock any workers waiting for dialog
+            self._finish()
 
-        dialog.choose(self, None, _on_response)
+        show_cancel_dialog(self, on_dismiss=lambda: setattr(self, "_closing", False), on_confirm=_confirm)
         return True

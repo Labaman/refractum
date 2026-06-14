@@ -128,7 +128,7 @@ def _check_fallback(primary_url: str, timeout: float) -> float | None:
                     continue
                 r.raise_for_status()
                 speed = _measure_stream(r, _TEST_BYTES, max_time=timeout)
-            if speed:  # not None and not 0.0 — a real measurement
+            if speed is not None:
                 return speed
         except (requests.RequestException, OSError):
             pass
@@ -196,13 +196,14 @@ def rank_mirror_set(
         return []
 
     results: list[RankResult] = []
+    pool: ThreadPoolExecutor | None = None
 
-    pool = ThreadPoolExecutor(max_workers=max_workers)
-    # Dict maps Future → template so we can look it up when the future completes
-    future_to_tmpl = {
-        pool.submit(test_mirror_speed, ms.make_test_url(tmpl), timeout): tmpl for tmpl in dict.fromkeys(templates)
-    }
     try:
+        pool = ThreadPoolExecutor(max_workers=max_workers)
+        # Dict maps Future → template so we can look it up when the future completes
+        future_to_tmpl = {
+            pool.submit(test_mirror_speed, ms.make_test_url(tmpl), timeout): tmpl for tmpl in dict.fromkeys(templates)
+        }
         for future in as_completed(future_to_tmpl):
             if cancel is not None and cancel.is_set():
                 pool.shutdown(wait=False, cancel_futures=True)
@@ -223,7 +224,8 @@ def rank_mirror_set(
             if on_progress:
                 on_progress(r)
     finally:
-        pool.shutdown(wait=False)
+        if pool is not None:
+            pool.shutdown(wait=False)
 
     # Sort: reachable first, then by speed descending
     results.sort(key=lambda r: (not r.reachable, -r.speed))
