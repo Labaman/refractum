@@ -13,7 +13,7 @@
   even after cancel
 - Save All button now disables itself on first click to prevent double-write
 - `ThreadPoolExecutor` pool in `rank_mirror_set` is now created inside the `try`
-  block — an exception during pool setup previously left the pool unshutdown
+  block — an exception during pool setup previously left the pool open and leaked its threads
 - Fallback reachability check now uses `is not None` instead of truthiness —
   `0.0` (mirror alive, speed unmeasurable) was incorrectly treated as unreachable
 - `refractum-rank --rate` now measures 4 MB sustained throughput (same method as

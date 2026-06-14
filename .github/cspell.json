@@ -15,6 +15,7 @@
     "PyGObject", "gobject", "PKGBUILD", "SRCINFO", "hatchling",
     "shlex",
     "Réunion", "Türkiye",
-    "TTFB", "AUR"
+    "TTFB", "AUR",
+    "lastupdate"
   ]
 }
