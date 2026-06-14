@@ -32,7 +32,6 @@ class SelectionResult:
 
     options: ReflectorOptions
     distro_sets: list[MirrorSet] = field(default_factory=list)
-    distro_workers: int = 10
     cancelled: bool = False
 
 
@@ -369,28 +368,22 @@ class MainWindow(Gtk.ApplicationWindow):
         opts_grid.set_margin_bottom(6)
         opts_frame.set_child(opts_grid)
 
-        opts_grid.attach(Gtk.Label(label="Concurrent workers:", xalign=0), 0, 0, 1, 1)
-        adj = Gtk.Adjustment(value=10, lower=1, upper=32, step_increment=1)
-        self._workers_spin = Gtk.SpinButton(adjustment=adj, climb_rate=1, digits=0)
-        self._workers_spin.set_width_chars(6)
-        opts_grid.attach(self._workers_spin, 1, 0, 1, 1)
-
         self._ww_fallback_cb = Gtk.CheckButton(label="Worldwide fallback")
         self._ww_fallback_cb.set_active(self._defaults.distro_ww_fallback)
         self._ww_fallback_cb.set_tooltip_text(
             "On: silently use all worldwide mirrors when none are found in the selected countries.\n"
             "Off: ask before falling back."
         )
-        opts_grid.attach(self._ww_fallback_cb, 0, 1, 3, 1)
+        opts_grid.attach(self._ww_fallback_cb, 0, 0, 3, 1)
 
         opts_grid.attach(
             Gtk.Label(
-                label="Timeout and max mirrors are taken from the Arch mirrors tab.",
+                label="Timeout, threads and max mirrors are taken from the Arch mirrors tab.",
                 xalign=0,
                 css_classes=["dim-label"],
             ),
             0,
-            2,
+            1,
             3,
             1,
         )
@@ -476,7 +469,6 @@ class MainWindow(Gtk.ApplicationWindow):
         result = SelectionResult(
             options=opts,
             distro_sets=selected_distros,
-            distro_workers=int(self._workers_spin.get_value()),
         )
         # Fire callback BEFORE closing so the next window opens first.
         # If we closed first, GTK might see zero windows and try to quit.

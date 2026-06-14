@@ -162,7 +162,7 @@ class RankResult:
 def rank_mirror_set(
     ms: MirrorSet,
     templates: list[str] | None = None,
-    max_workers: int = 10,
+    max_workers: int = 5,
     timeout: float = 8.0,
     protocols: list[str] | None = None,
     max_results: int | None = None,
@@ -197,12 +197,12 @@ def rank_mirror_set(
 
     results: list[RankResult] = []
 
-    with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        # Dict maps Future → template so we can look it up when the future completes
-        future_to_tmpl = {
-            pool.submit(test_mirror_speed, ms.make_test_url(tmpl), timeout): tmpl for tmpl in dict.fromkeys(templates)
-        }
-
+    pool = ThreadPoolExecutor(max_workers=max_workers)
+    # Dict maps Future → template so we can look it up when the future completes
+    future_to_tmpl = {
+        pool.submit(test_mirror_speed, ms.make_test_url(tmpl), timeout): tmpl for tmpl in dict.fromkeys(templates)
+    }
+    try:
         for future in as_completed(future_to_tmpl):
             if cancel is not None and cancel.is_set():
                 pool.shutdown(wait=False, cancel_futures=True)
@@ -222,6 +222,8 @@ def rank_mirror_set(
 
             if on_progress:
                 on_progress(r)
+    finally:
+        pool.shutdown(wait=False)
 
     # Sort: reachable first, then by speed descending
     results.sort(key=lambda r: (not r.reachable, -r.speed))

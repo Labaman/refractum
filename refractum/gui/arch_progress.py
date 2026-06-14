@@ -12,9 +12,9 @@ Sort modes:
 
 from __future__ import annotations
 
-import queue
 import threading
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections.abc import Callable
 
 import gi
@@ -54,6 +54,7 @@ class ArchProgressWindow(Gtk.Window):
         self._done = False
         self._cancelled = False
         self._closing = False
+        self._cancel_event = threading.Event()
         self._pulse_timer: int | None = None
 
         self.connect("close-request", self._on_close_request)
@@ -126,6 +127,7 @@ class ArchProgressWindow(Gtk.Window):
 
     def _worker(self) -> None:
         opts = self._options
+        cancel = self._cancel_event
         selected_codes = set(opts.countries) - {"WW"}
 
         try:
@@ -141,6 +143,9 @@ class ArchProgressWindow(Gtk.Window):
 
         if not mirrors:
             GLib.idle_add(self._on_no_mirrors)
+            return
+
+        if cancel.is_set():
             return
 
         GLib.idle_add(self._set_total, len(mirrors))
@@ -167,45 +172,35 @@ class ArchProgressWindow(Gtk.Window):
             GLib.idle_add(self._on_all_done)
             return
 
-        # Rate sort: daemon thread pool + result queue.
-        # A plain ThreadPoolExecutor (with-block) blocks in __exit__ until all futures
-        # complete — that would hang here if the user closes the window mid-test.
-        # Daemon threads are killed when the process exits without any blocking.
+        # Rate sort: concurrent speed test.
+        # Manual pool (no with-block) so shutdown(wait=False) on cancel returns
+        # immediately without blocking until in-flight requests finish.
         GLib.idle_add(self._status.set_text, f"Testing {len(mirrors)} mirrors…")
         max_workers = opts.threads or 5
         timeout = float(opts.download_timeout)
 
-        work_q: queue.Queue = queue.Queue()
-        result_q: queue.Queue = queue.Queue()
-        _sentinel = object()
+        # Deduplicate by server_template (mirrors with the same URL would submit
+        # redundant requests and the second future would silently overwrite the first
+        # in the dict comprehension).
+        unique_mirrors = list({m.server_template: m for m in mirrors}.values())
 
-        def _pool_worker() -> None:
-            while True:
-                item = work_q.get()
-                if item is _sentinel:
-                    return
-                m: ArchMirror = item
+        pool = ThreadPoolExecutor(max_workers=max_workers)
+        future_to_mirror = {
+            pool.submit(test_mirror_speed, m.make_test_url(), timeout): m
+            for m in unique_mirrors
+        }
+        cancelled_mid_run = False
+        try:
+            for future in as_completed(future_to_mirror):
+                if cancel.is_set():
+                    pool.shutdown(wait=False, cancel_futures=True)
+                    cancelled_mid_run = True
+                    break
+                m = future_to_mirror[future]
                 try:
-                    speed = None if self._cancelled else test_mirror_speed(m.make_test_url(), timeout)
+                    speed = future.result()
                 except Exception:
                     speed = None
-                result_q.put((m, speed))
-
-        for m in mirrors:
-            work_q.put(m)
-        for _ in range(max_workers):
-            work_q.put(_sentinel)
-            threading.Thread(target=_pool_worker, daemon=True).start()
-
-        try:
-            received = 0
-            total = len(mirrors)
-            while received < total and not self._cancelled:
-                try:
-                    m, speed = result_q.get(timeout=0.1)
-                except queue.Empty:
-                    continue
-                received += 1
                 r = RankResult(
                     template=m.server_template,
                     speed=speed or 0.0,
@@ -215,8 +210,12 @@ class ArchProgressWindow(Gtk.Window):
                 GLib.idle_add(self._on_mirror_result, r, m)
         except Exception:
             traceback.print_exc()
+            pool.shutdown(wait=False, cancel_futures=True)
+            cancelled_mid_run = True
+        finally:
+            pool.shutdown(wait=False)
 
-        if not self._cancelled:
+        if not cancelled_mid_run:
             GLib.idle_add(self._on_all_done)
 
     # ------------------------------------------------------------------
@@ -362,6 +361,7 @@ class ArchProgressWindow(Gtk.Window):
                 return
             if idx == 1:
                 self._cancelled = True
+                self._cancel_event.set()
                 self._stop_pulse()
                 if self._done:
                     self._finish(None)

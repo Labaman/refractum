@@ -111,15 +111,15 @@ def _handle_main_result(app, result, countries) -> None:
         distro_win = DistroProgressWindow(
             app=app,
             mirror_sets=result.distro_sets,
-            max_workers=result.distro_workers,
+            max_workers=result.options.threads or 5,
             timeout=result.options.download_timeout,
             protocols=result.options.protocols or ["https"],
             max_results=result.options.number,
             country_names=country_names,
             country_codes=selected_codes if selected_codes else None,
-            # Inherits the same sort method from the Arch tab.
+            # Distro mirrors have no score/age/delay metadata — normalize to "rate".
             # "country" takes the fast path (no speed test, alphabetical by country).
-            sort_by=result.options.sort,
+            sort_by=result.options.sort if result.options.sort in ("rate", "country") else "rate",
             ww_fallback_auto=result.options.distro_ww_fallback,
             on_done=lambda: _start_arch_ranking(app, result),
         )

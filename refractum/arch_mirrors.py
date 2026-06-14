@@ -8,6 +8,7 @@ Mirror status JSON is cached locally for CACHE_TTL seconds.
 from __future__ import annotations
 
 import json
+import platform
 import time
 import unicodedata
 from dataclasses import dataclass
@@ -43,7 +44,8 @@ class ArchMirror:
 
     def make_test_url(self) -> str:
         """URL used for speed measurement — extra.db, same target as reflector."""
-        return self.url.rstrip("/") + "/extra/os/x86_64/extra.db"
+        arch = platform.machine()
+        return self.url.rstrip("/") + f"/extra/os/{arch}/extra.db"
 
 
 # ---------------------------------------------------------------------------
