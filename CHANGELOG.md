@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.6.5] — 2026-06-14
+
+### Fixed
+- Cancel check in Arch ranking now runs after every mirror result, not only on
+  queue timeout — ranking could ignore cancel if all results arrived without a gap
+- Post-cancel `GLib.idle_add(_on_set_done)` calls in distro ranking are now
+  suppressed — idle callbacks queued before cancel fired could trigger the Save
+  button after ranking was stopped
+- `_derive_worker` (derived mirrorlist fetch) now checks cancel at start, after
+  the network fetch, and before posting results — previously ran to completion
+  even after cancel
+- Save All button now disables itself on first click to prevent double-write
+- `ThreadPoolExecutor` pool in `rank_mirror_set` is now created inside the `try`
+  block — an exception during pool setup previously left the pool unshutdown
+- Fallback reachability check now uses `is not None` instead of truthiness —
+  `0.0` (mirror alive, speed unmeasurable) was incorrectly treated as unreachable
+- `refractum-rank --rate` now measures 4 MB sustained throughput (same method as
+  the GUI) instead of TTFB from a tiny `lastupdate` file
+
+### Removed
+- `Country.count` field — was populated but never read anywhere
+- `replaces=('refract')` and `conflicts=('refract')` from PKGBUILD — migration
+  window from the old package name has long since passed
+
 ## [1.6.4] — 2026-06-13
 
 ### Fixed

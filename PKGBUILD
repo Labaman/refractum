@@ -1,14 +1,12 @@
 # Maintainer: Mikhail <efklid@gmail.com>
 # shellcheck disable=SC2034,SC2154
 pkgname=refractum
-pkgver=1.6.4
+pkgver=1.6.5
 pkgrel=1
 pkgdesc="GUI tool for ranking pacman mirrors on Arch Linux and Arch-based distributions"
 arch=('any')
 url="https://github.com/Labaman/refractum"
 license=('GPL-3.0-or-later')
-replaces=('refract')
-conflicts=('refract')
 depends=(
     'python'
     'python-requests'
