@@ -185,10 +185,7 @@ class ArchProgressWindow(Gtk.Window):
         unique_mirrors = list({m.server_template: m for m in mirrors}.values())
 
         pool = ThreadPoolExecutor(max_workers=max_workers)
-        future_to_mirror = {
-            pool.submit(test_mirror_speed, m.make_test_url(), timeout): m
-            for m in unique_mirrors
-        }
+        future_to_mirror = {pool.submit(test_mirror_speed, m.make_test_url(), timeout): m for m in unique_mirrors}
         cancelled_mid_run = False
         try:
             for future in as_completed(future_to_mirror):
