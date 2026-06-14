@@ -15,7 +15,7 @@ jobs:
       - name: Install dependencies
         run: pacman -Syu --noconfirm base-devel git python-build python-installer python-hatchling github-cli
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Build package
         run: |
