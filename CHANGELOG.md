@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.6.6] — 2026-06-15
+
+### Fixed
+- CachyOS v3/v4 derived mirrorlists always had 0 reachable mirrors —
+  `_derive_worker` performed a secondary network fetch of the v3/v4
+  mirrorlist to cross-check architecture support, but any secondary fetch
+  after the primary speed test is unreliable (rate limiting or timeouts
+  from any source can return an empty or partial list, excluding all
+  mirrors from the derived set); derived sets now use 1:1 arch-variable
+  substitution from primary results with no secondary network fetch
+- "Save all" button stayed permanently disabled after dismissing the issues
+  dialog (shown when some mirror sets had 0 reachable mirrors and were skipped)
+
+### Removed
+- Redundant `max_results` trimming in `_derive_worker` — primary results are
+  already trimmed before derive starts
+
 ## [1.6.5] — 2026-06-14
 
 ### Fixed

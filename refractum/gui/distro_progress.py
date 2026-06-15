@@ -8,7 +8,6 @@ Architecture for sets with primary_id (e.g. CachyOS v3/v4):
   - Only the primary set (e.g. cachyos x86_64) is speed-tested.
   - Derived sets get their ranking from the primary: the same mirror servers,
     but with the arch variable substituted ($arch → $arch_v3 / $arch_v4).
-  - Mirrors not present in the derived set's upstream list are excluded.
   - This avoids testing the same servers 3× and bypasses rate-limiting.
 """
 
@@ -319,48 +318,33 @@ class DistroProgressWindow(Gtk.Window):
         Build the derived set's mirrorlist from the primary's ranked results.
 
         For each ranked primary mirror we substitute the primary's arch_var
-        with the derived set's arch_var.  We then cross-check against the
-        derived set's upstream mirrorlist so mirrors that don't support the
-        derived architecture are excluded.
+        with the derived set's arch_var.
 
         Example: primary template "https://cdn77.cachyos.org/repo/$arch/$repo"
           → derived template  "https://cdn77.cachyos.org/repo/$arch_v3/$repo"
         """
-        from ..distros import fetch_mirrorlist
-
         if self._cancelled:
             return
 
         try:
             GLib.idle_add(self._set_pb_text, derived_ms.id, f"Deriving from {primary_ms.display_name}…")
 
-            # Fetch derived set's upstream list to know which mirrors support this arch
-            derived_all = fetch_mirrorlist(
-                derived_ms, country_names=self._country_names, country_codes=self._country_codes
-            )
-            derived_set = set(derived_all)
-
             if self._cancelled:
                 return
 
-            derived_results: list[RankResult] = []
-            for r in primary_results:
-                derived_tmpl = r.template.replace(primary_ms.arch_var, derived_ms.arch_var)
-                # Only include mirrors verified to exist in the derived list
-                if derived_set and derived_tmpl not in derived_set:
-                    continue
-                derived_results.append(
-                    RankResult(
-                        template=derived_tmpl,
-                        speed=r.speed,
-                        reachable=r.reachable,
-                    )
+            # Mirror speed is measured on the primary ($arch) repo; v3/v4 packages live
+            # in a sibling directory on the same host, so the same ranking applies.
+            # No cross-check against the upstream v3/v4 list — that fetch is unreliable
+            # (GitHub times out after the long speed test) and the filtering it provides
+            # is not worth the complexity: pacman handles missing paths by trying the next mirror.
+            derived_results = [
+                RankResult(
+                    template=r.template.replace(primary_ms.arch_var, derived_ms.arch_var),
+                    speed=r.speed,
+                    reachable=r.reachable,
                 )
-
-            if self._max_results:
-                ok = [r for r in derived_results if r.reachable]
-                bad = [r for r in derived_results if not r.reachable]
-                derived_results = ok[: self._max_results] + bad
+                for r in primary_results
+            ]
 
             if not self._cancelled:
                 GLib.idle_add(self._on_set_done, derived_ms.id, derived_results)
@@ -516,7 +500,11 @@ class DistroProgressWindow(Gtk.Window):
         lb.append(make_rank_result_row(result, result.country, show_no_data=(self._sort_by != "country")))
 
     def _update_overall_progress(self) -> None:
-        total_done = sum(len(v) for v in self._results.values())
+        total_done = sum(
+            len(self._results.get(ms.id, []))
+            for ms in self._sets
+            if not ms.primary_id
+        )
         total_all = sum(self._total_mirrors.get(ms.id, 0) for ms in self._sets if not ms.primary_id)
         if total_all > 0:
             self._overall_bar.set_fraction(min(1.0, total_done / total_all))
@@ -611,7 +599,18 @@ class DistroProgressWindow(Gtk.Window):
         if parts:
             dialog.set_message("Issues while saving")
             dialog.set_detail("\n\n".join(parts))
-            dialog.show(self)
+
+            def _on_response_issues(src, result):
+                try:
+                    dialog.choose_finish(result)
+                except Exception:
+                    pass
+                if errors:
+                    btn.set_sensitive(True)
+                else:
+                    self._finish()
+
+            dialog.choose(self, None, _on_response_issues)
         else:
             dialog.set_message("All mirrorlists saved.")
 
