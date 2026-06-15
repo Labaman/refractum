@@ -500,11 +500,7 @@ class DistroProgressWindow(Gtk.Window):
         lb.append(make_rank_result_row(result, result.country, show_no_data=(self._sort_by != "country")))
 
     def _update_overall_progress(self) -> None:
-        total_done = sum(
-            len(self._results.get(ms.id, []))
-            for ms in self._sets
-            if not ms.primary_id
-        )
+        total_done = sum(len(self._results.get(ms.id, [])) for ms in self._sets if not ms.primary_id)
         total_all = sum(self._total_mirrors.get(ms.id, 0) for ms in self._sets if not ms.primary_id)
         if total_all > 0:
             self._overall_bar.set_fraction(min(1.0, total_done / total_all))
