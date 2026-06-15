@@ -51,6 +51,9 @@
   completes between the X-click and the cancel confirmation
 - `_load_toml` now prints a warning to stderr instead of silently swallowing
   broken `settings.toml` parse errors
+- `make_test_url()` hardcoded `x86_64` in the speed-test URL —
+  now uses `platform.machine()` so mirror testing works correctly
+  on non-x86_64 architectures
 
 ### Removed
 - `RankResult.test_url` field — was populated in all constructors but never read
